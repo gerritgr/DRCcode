@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from __future__ import annotations
-
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent
@@ -8,15 +6,14 @@ GITIGNORE = REPO_ROOT / ".gitignore"
 DATA_DIR = REPO_ROOT / "DATA"
 
 DUMMY_NAME = "dummy_file.txt"
-BACKGROUND_REL = Path("DATA") / "background.png"  # exception that should be tracked
+BACKGROUND_REL = Path("DATA/background.png")
 
 AUTO_BLOCK_HEADER = "# --- auto-added: DATA dummy files + ignore all other DATA files ---"
 REQUIRED_GITIGNORE_LINES = [
     AUTO_BLOCK_HEADER,
-    # If you (now or later) have broad ignore rules like DATA/**, these ensure dummies & background can still be tracked:
-    "!DATA/**/",  # don't ignore directories (needed for any later un-ignores to work)
-    f"!DATA/**/{DUMMY_NAME}",
-    f"!{BACKGROUND_REL.as_posix()}",
+    "!DATA/**/",                     # allow directories
+    f"!DATA/**/{DUMMY_NAME}",        # allow dummy files
+    f"!{BACKGROUND_REL.as_posix()}", # allow background.png
 ]
 
 
@@ -26,34 +23,39 @@ def read_lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines()
 
 
-def append_missing_lines(path: Path, lines_to_ensure: list[str]) -> int:
-    existing_lines = read_lines(path)
-    existing_set = set(existing_lines)
+def append_missing_lines(path: Path, lines: list[str]) -> int:
+    existing = read_lines(path)
+    existing_set = set(existing)
 
-    to_add = [ln for ln in lines_to_ensure if ln not in existing_set]
+    to_add = [l for l in lines if l not in existing_set]
     if not to_add:
         return 0
 
-    # Add a clean separation from previous content
-    prefix = ""
-    if existing_lines and existing_lines[-1].strip() != "":
-        prefix = "\n"
-
-    new_text = "\n".join(existing_lines) + prefix + "\n" + "\n".join(to_add) + "\n"
-    path.write_text(new_text, encoding="utf-8")
+    sep = "\n" if existing and existing[-1].strip() else ""
+    path.write_text(
+        "\n".join(existing) + sep + "\n" + "\n".join(to_add) + "\n",
+        encoding="utf-8",
+    )
     return len(to_add)
 
 
-def ensure_dummy_files(data_dir: Path) -> int:
-    """Create dummy_file.txt in DATA/ and every subdirectory under DATA/."""
-    if not data_dir.exists() or not data_dir.is_dir():
+def ensure_dummy_files_leaf_dirs(data_dir: Path) -> int:
+    """
+    Create dummy_file.txt ONLY in leaf directories under DATA/
+    (directories that contain no subdirectories).
+    """
+    if not data_dir.exists():
         return 0
 
     created = 0
+    for d in data_dir.rglob("*"):
+        if not d.is_dir():
+            continue
 
-    # Include DATA itself
-    all_dirs = [data_dir] + [p for p in data_dir.rglob("*") if p.is_dir()]
-    for d in all_dirs:
+        has_subdirs = any(p.is_dir() for p in d.iterdir())
+        if has_subdirs:
+            continue  # skip non-leaf dirs
+
         dummy = d / DUMMY_NAME
         if not dummy.exists():
             dummy.write_text("", encoding="utf-8")
@@ -64,52 +66,42 @@ def ensure_dummy_files(data_dir: Path) -> int:
 
 def data_files_to_ignore(data_dir: Path) -> list[str]:
     """
-    Return repo-relative POSIX paths for all files under DATA/
-    that should be ignored (everything except dummy_file.txt and background.png).
+    Return repo-relative paths for all DATA files that are NOT:
+    - dummy_file.txt
+    - DATA/background.png
     """
-    if not data_dir.exists() or not data_dir.is_dir():
+    if not data_dir.exists():
         return []
 
-    ignore_paths: list[str] = []
+    ignores = []
     for f in data_dir.rglob("*"):
         if not f.is_file():
             continue
 
-        rel = f.relative_to(REPO_ROOT)
+        rel = f.relative_to(REPO_ROOT).as_posix()
 
-        # Never ignore dummy files
-        if rel.name == DUMMY_NAME:
+        if f.name == DUMMY_NAME:
+            continue
+        if rel == BACKGROUND_REL.as_posix():
             continue
 
-        # Never ignore background.png exception
-        if rel.as_posix() == BACKGROUND_REL.as_posix():
-            continue
+        ignores.append(rel)
 
-        # Add this specific file path to .gitignore
-        ignore_paths.append(rel.as_posix())
-
-    # Stable order to reduce churn
-    ignore_paths.sort()
-    return ignore_paths
+    return sorted(ignores)
 
 
-def main() -> None:
-    dummy_created = ensure_dummy_files(DATA_DIR)
+def main():
+    dummy_created = ensure_dummy_files_leaf_dirs(DATA_DIR)
 
-    # Add required header + unignore rules
     added_required = append_missing_lines(GITIGNORE, REQUIRED_GITIGNORE_LINES)
+    added_files = append_missing_lines(GITIGNORE, data_files_to_ignore(DATA_DIR))
 
-    # Add one ignore line per non-dummy DATA file
-    per_file_ignores = data_files_to_ignore(DATA_DIR)
-    added_per_file = append_missing_lines(GITIGNORE, per_file_ignores)
-
-    print(f"Created {dummy_created} '{DUMMY_NAME}' file(s) under DATA/ directories.")
-    print(f".gitignore: added {added_required} required line(s).")
-    print(f".gitignore: added {added_per_file} per-file ignore line(s) for DATA/ non-dummy files.")
-    print("Done.")
-    print("\nNext:")
+    print(f"Created {dummy_created} dummy file(s) in leaf DATA directories.")
+    print(f".gitignore: added {added_required} structural rule(s).")
+    print(f".gitignore: added {added_files} per-file ignore rule(s).")
+    print("Next:")
     print("  git add .gitignore DATA")
-    print('  git commit -m "Track DATA folders via dummy files; ignore other DATA files"')
+    print('  git commit -m "Track DATA leaf folders via dummy files; ignore real DATA files"')
 
 
 if __name__ == "__main__":
