@@ -228,3 +228,6 @@ DATA/DHS/CDIR81FL/CDIR81FL.frw
 DATA/DHS/CDIR81FL/CDIR81FL.map
 DATA/Drought/.DS_Store
 DATA/Drought/spei01/spei01.nc
+
+DATA/Drought/DRC_spei01_clean.csv
+DATA/Drought/convert.py
