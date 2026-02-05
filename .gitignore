@@ -209,8 +209,22 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# --- auto-added: ignore DATA contents but keep empty folders + background.png ---
-DATA/**
+# --- auto-added: DATA dummy files + ignore all other DATA files ---
 !DATA/**/
-!DATA/**/.gitkeep
+!DATA/**/dummy_file.txt
 !DATA/background.png
+
+DATA/.DS_Store
+DATA/Conflict/.DS_Store
+DATA/Conflict/Africa_lagged_data_up_to-2024-10-17/Africa_lagged_data_up_to-2024-10-17.xlsx
+DATA/DHS/.DS_Store
+DATA/DHS/CDGE81FL/CDGE81FL.shp
+DATA/DHS/CDIR81FL/CDIR81FL.DCT
+DATA/DHS/CDIR81FL/CDIR81FL.DO
+DATA/DHS/CDIR81FL/CDIR81FL.docx
+DATA/DHS/CDIR81FL/CDIR81FL.dta
+DATA/DHS/CDIR81FL/CDIR81FL.frq
+DATA/DHS/CDIR81FL/CDIR81FL.frw
+DATA/DHS/CDIR81FL/CDIR81FL.map
+DATA/Drought/.DS_Store
+DATA/Drought/spei01/spei01.nc
