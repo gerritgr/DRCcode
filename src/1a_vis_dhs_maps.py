@@ -383,11 +383,24 @@ def main():
     )
 
     # Save map 1
-    output1 = OUTPUT_DIR / "indicator1_sv_ever_map.jpg"
+    output1 = OUTPUT_DIR / "1a_indicator1_sv_ever_map.jpg"
     plt.savefig(output1, dpi=DPI, bbox_inches="tight")
     plt.close()
 
+    output1_csv = OUTPUT_DIR / "1a_indicator1_sv_ever_map.csv"
+    pd.DataFrame(
+        {
+            "LONGNUM": df_sv["LONGNUM"],
+            "LATNUM": df_sv["LATNUM"],
+            "value": df_sv["fraction_sv_ever"],
+            "size": sizes.loc[df_sv.index],
+            "n_women": df_sv["n_women"],
+            "cluster_id": df_sv["cluster_id"],
+        }
+    ).to_csv(output1_csv, index=False)
+
     print(f"  ✓ Saved: {output1.name}")
+    print(f"  ✓ Saved: {output1_csv.name}")
     print(f"    → {len(df_sv):,} clusters plotted")
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -467,11 +480,24 @@ def main():
     )
 
     # Save map 2
-    output2 = OUTPUT_DIR / "indicator2_severe_ever_map.jpg"
+    output2 = OUTPUT_DIR / "1a_indicator2_severe_ever_map.jpg"
     plt.savefig(output2, dpi=DPI, bbox_inches="tight")
     plt.close()
 
+    output2_csv = OUTPUT_DIR / "1a_indicator2_severe_ever_map.csv"
+    pd.DataFrame(
+        {
+            "LONGNUM": df_other["LONGNUM"],
+            "LATNUM": df_other["LATNUM"],
+            "value": df_other["fraction_other"],
+            "size": sizes.loc[df_other.index],
+            "n_women": df_other["n_women"],
+            "cluster_id": df_other["cluster_id"],
+        }
+    ).to_csv(output2_csv, index=False)
+
     print(f"  ✓ Saved: {output2.name}")
+    print(f"  ✓ Saved: {output2_csv.name}")
     print(f"    → {len(df_other):,} clusters plotted")
 
     # -------------------------------------------------------------------------
@@ -481,13 +507,17 @@ def main():
     print("VISUALIZATION COMPLETE!")
     print("=" * 70)
     print(f"\n📊 OUTPUT FILES (saved in {OUTPUT_DIR.name}/):")
-    print(f"\n  1. indicator1_sv_ever_map.jpg")
+    print(f"\n  1. 1a_indicator1_sv_ever_map.jpg")
     print(f"     → Map of sexual violence (ever) prevalence")
     print(f"     → {len(df_sv):,} clusters visualized")
+    print(f"\n  2. 1a_indicator1_sv_ever_map.csv")
+    print(f"     → Data behind the sexual violence map (location/value/size)")
 
-    print(f"\n  2. indicator2_severe_ever_map.jpg")
+    print(f"\n  3. 1a_indicator2_severe_ever_map.jpg")
     print(f"     → Map of severe violence (ever) prevalence")
     print(f"     → {len(df_other):,} clusters visualized")
+    print(f"\n  4. 1a_indicator2_severe_ever_map.csv")
+    print(f"     → Data behind the severe violence map (location/value/size)")
 
     print(f"\n⚙️  Settings:")
     print(f"  → Weighting: {title_suffix}")

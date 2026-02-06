@@ -210,7 +210,7 @@ cluster_stats = cluster_stats.dropna(subset=["fraction_var1", "fraction_var2"])
 
 print(f"  ✓ Aggregated to {len(cluster_stats):,} clusters with data for both variables")
 
-output_csv = OUTDIR / "cluster_correlation_data.csv"
+output_csv = OUTDIR / "1b_cluster_correlation_data.csv"
 cluster_stats.to_csv(output_csv, index=False)
 print(f"  ✓ Saved cluster data: {output_csv}")
 
@@ -262,16 +262,20 @@ print(f"  → Regression: y = {slope:.3f}x + {intercept:.3f}")
 
 fig, ax = plt.subplots(figsize=FIGSIZE)
 
-ax.scatter(
+sc = ax.scatter(
     cluster_stats["fraction_var1"],
     cluster_stats["fraction_var2"],
     s=POINT_SIZE,
     alpha=POINT_ALPHA,
-    c=POINT_COLOR,
+    c=cluster_stats["total_weight"],
+    cmap="viridis",
     edgecolors="black",
     linewidths=0.5,
     zorder=2,
 )
+
+cbar = plt.colorbar(sc, ax=ax)
+cbar.set_label("Cluster total weight (sum v005)", fontsize=11)
 
 x_line = np.array([0.0, 1.0])
 y_line = slope * x_line + intercept
@@ -330,7 +334,7 @@ ax.text(
 
 ax.legend(loc="lower right", fontsize=10, framealpha=0.9)
 
-output_fig = OUTDIR / "cluster_correlation_scatter.jpg"
+output_fig = OUTDIR / "1b_cluster_correlation_scatter.jpg"
 plt.savefig(output_fig, dpi=DPI, bbox_inches="tight")
 plt.close()
 
