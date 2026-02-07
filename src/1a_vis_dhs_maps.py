@@ -80,13 +80,13 @@ EXTENT = [11.893979235367297, 31.616531541802978, -13.981788316118982, 5.8118259
 # Visualization settings
 USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
 DPI = 300                   # Resolution of output images (dots per inch)
-BG_ALPHA = 0.55            # Transparency of background map (0=invisible, 1=opaque)
+BG_ALPHA = 0.9            # Transparency of background map (0=invisible, 1=opaque)
 CMAP = "magma"             # Color map for prevalence (dark purple to yellow)
-CIRCLE_ALPHA = 0.45        # Transparency of cluster circles
+CIRCLE_ALPHA = 0.25        # Transparency of cluster circles
 
 # Circle size range (in points²)
 SIZE_MIN = 25.0            # Minimum marker area
-SIZE_MAX = 600.0           # Maximum marker area
+SIZE_MAX = 300.0           # Maximum marker area
 
 # =============================================================================
 # HELPER FUNCTIONS

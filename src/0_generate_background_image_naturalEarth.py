@@ -15,7 +15,7 @@ max_lon = 31.616531541802978
 min_lat = -13.981788316118982
 max_lat = 5.811825978871415
 
-OUTPATH = "../DATA/background_ne.png"  # final image saved here
+OUTPATH = "../DATA/background.png"  # final image saved here
 
 # temporary working directory (must not already exist)
 out_dir = "_TEMP_aoi_square_outputs"
@@ -153,8 +153,8 @@ try:
         for (x, y), nm in zip(zip(label_pts.x, label_pts.y), others[name_col].astype(str)):
             ax.text(
                 x, y, nm,
-                fontsize=9,
-                alpha=0.22,
+                fontsize=13,
+                alpha=0.5,
                 ha="center", va="center"
             )
 

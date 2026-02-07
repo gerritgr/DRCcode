@@ -11,7 +11,7 @@ max_lon = 31.616531541802978
 min_lat = -13.981788316118982
 max_lat = 5.811825978871415
 
-OUTPATH = "../DATA/background.png"  # final copy saved to ../DATA with this name
+OUTPATH = "../DATA/background_osm.png"  # final copy saved to ../DATA with this name
 
 # Zoom/tile config
 zoom = 7
