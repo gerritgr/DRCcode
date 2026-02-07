@@ -25,10 +25,13 @@ os.makedirs(out_dir, exist_ok=False)
 
 try:
     # ------------------ Natural Earth downloads ------------------
-    NE_BASE = "https://naciscdn.org/naturalearth/10m/cultural/"
+    NE_BASE_CULT = "https://naciscdn.org/naturalearth/10m/cultural/"
+    NE_BASE_PHYS = "https://naciscdn.org/naturalearth/10m/physical/"  # <-- ADDED
+
     NE_ZIPS = {
         "countries": "ne_10m_admin_0_countries.zip",
         "admin1": "ne_10m_admin_1_states_provinces.zip",
+        "lakes": "ne_10m_lakes.zip",  # <-- ADDED
     }
 
     def download_to_bytes(url: str) -> bytes:
@@ -47,16 +50,21 @@ try:
         raise FileNotFoundError(f"No .shp found after extracting to {dest_dir}")
 
     countries_shp = extract_zip_bytes(
-        download_to_bytes(NE_BASE + NE_ZIPS["countries"]),
+        download_to_bytes(NE_BASE_CULT + NE_ZIPS["countries"]),
         os.path.join(out_dir, "ne_countries"),
     )
     admin1_shp = extract_zip_bytes(
-        download_to_bytes(NE_BASE + NE_ZIPS["admin1"]),
+        download_to_bytes(NE_BASE_CULT + NE_ZIPS["admin1"]),
         os.path.join(out_dir, "ne_admin1"),
+    )
+    lakes_shp = extract_zip_bytes(  # <-- ADDED
+        download_to_bytes(NE_BASE_PHYS + NE_ZIPS["lakes"]),
+        os.path.join(out_dir, "ne_lakes"),
     )
 
     countries = gpd.read_file(countries_shp).to_crs("EPSG:4326")
     admin1 = gpd.read_file(admin1_shp).to_crs("EPSG:4326")
+    lakes = gpd.read_file(lakes_shp).to_crs("EPSG:4326")  # <-- ADDED
 
     # ------------------ Clip to bbox ------------------
     bbox_geom = box(min_lon, min_lat, max_lon, max_lat)
@@ -64,6 +72,7 @@ try:
 
     countries_clip = gpd.clip(countries, bbox_gdf)
     admin1_clip = gpd.clip(admin1, bbox_gdf)
+    lakes_clip = gpd.clip(lakes, bbox_gdf)  # <-- ADDED
 
     # ------------------ Identify DRC ------------------
     # Natural Earth typically uses ISO3 in ADM0_A3 (DRC = "COD")
@@ -109,6 +118,10 @@ try:
     # Background (white)
     countries_clip.plot(ax=ax, facecolor="white", linewidth=0)
 
+    # --- ADDED: Water bodies (lakes) ---
+    if len(lakes_clip) > 0:
+        lakes_clip.plot(ax=ax, linewidth=0, alpha=0.28)  # subtle fill, no outlines
+
     # Provinces inside DRC (thin)
     # Natural Earth admin1 has "adm0_a3" for country code in most versions
     if "adm0_a3" in admin1_clip.columns:
@@ -125,6 +138,25 @@ try:
     # DRC border (high emphasis)
     if len(drc) > 0:
         drc.boundary.plot(ax=ax, linewidth=2.6, alpha=1.0)
+
+    # --- ADDED: Neighbor country labels (low opacity, small text) ---
+    # Pick a reasonable label column
+    name_col = None
+    for c in ["NAME_EN", "NAME", "ADMIN", "FORMAL_EN"]:
+        if c in others.columns:
+            name_col = c
+            break
+
+    if name_col and len(others) > 0:
+        # representative_point() stays inside polygon (better than centroid)
+        label_pts = others.geometry.representative_point()
+        for (x, y), nm in zip(zip(label_pts.x, label_pts.y), others[name_col].astype(str)):
+            ax.text(
+                x, y, nm,
+                fontsize=9,
+                alpha=0.22,
+                ha="center", va="center"
+            )
 
     # Capital marker + label
     ax.scatter([kin_lon], [kin_lat], s=100, c="black", edgecolors="white")  # marker
