@@ -1,0 +1,360 @@
+model_metadata:
+  model_type: DecisionTreeClassifier
+  outcome_variable: extremely_disadvantaged
+  outcome_definition: 2 or more IPV indicators answered "Yes"
+  ipv_indicators:
+  - d111
+  - d104
+  - d106
+  - d108
+  n_features: 5925
+  n_samples_train: 6929
+  n_samples_test: 1733
+  tree_depth: 5
+  n_leaves: 15
+  parameters:
+    max_depth: 5
+    min_samples_split: 100
+    min_samples_leaf: 50
+    random_state: 42
+performance_metrics:
+  training:
+    accuracy: 0.9551161783807187
+  testing:
+    accuracy: 0.9457587997691864
+    precision: 0.9208494208494209
+    recall: 0.9
+    f1_score: 0.9103053435114504
+tree_structure:
+  node_id: 0
+  n_samples: 6929
+  predicted_class: 0
+  class_distribution:
+    not_disadvantaged: 0
+    extremely_disadvantaged: 0
+  class_probabilities:
+    not_disadvantaged: 0.5452321315565534
+    extremely_disadvantaged: 0.4547678684434466
+  split_feature: d105b
+  split_threshold: 0.5
+  left_child:
+    node_id: 1
+    n_samples: 4435
+    predicted_class: 0
+    class_distribution:
+      not_disadvantaged: 0
+      extremely_disadvantaged: 0
+    class_probabilities:
+      not_disadvantaged: 0.8986534606062586
+      extremely_disadvantaged: 0.1013465393937414
+    split_feature: d103c
+    split_threshold: 0.5
+    left_child:
+      node_id: 2
+      n_samples: 4003
+      predicted_class: 0
+      class_distribution:
+        not_disadvantaged: 0
+        extremely_disadvantaged: 0
+      class_probabilities:
+        not_disadvantaged: 0.9579252661383615
+        extremely_disadvantaged: 0.04207473386163843
+      split_feature: d110a
+      split_threshold: 0.5
+      left_child:
+        node_id: 3
+        n_samples: 3946
+        predicted_class: 0
+        class_distribution:
+          not_disadvantaged: 0
+          extremely_disadvantaged: 0
+        class_probabilities:
+          not_disadvantaged: 0.9707855495422458
+          extremely_disadvantaged: 0.029214450457754188
+        split_feature: d109a
+        split_threshold: 19.5
+        left_child:
+          node_id: 4
+          n_samples: 3789
+          predicted_class: 0
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 0
+          class_probabilities:
+            not_disadvantaged: 0.9851219909146727
+            extremely_disadvantaged: 0.014878009085327286
+          split_feature: d103a
+          split_threshold: 0.5
+          left_child:
+            node_id: 5
+            n_samples: 3641
+            predicted_class: 0
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.9920171617375256
+              extremely_disadvantaged: 0.007982838262474335
+            leaf: true
+          right_child:
+            node_id: 6
+            n_samples: 148
+            predicted_class: 0
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.8180374490469204
+              extremely_disadvantaged: 0.1819625509530796
+            leaf: true
+        right_child:
+          node_id: 7
+          n_samples: 157
+          predicted_class: 0
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 0
+          class_probabilities:
+            not_disadvantaged: 0.6626059798321663
+            extremely_disadvantaged: 0.3373940201678337
+          split_feature: v456a
+          split_threshold: 111.5
+          left_child:
+            node_id: 8
+            n_samples: 53
+            predicted_class: 1
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.2893158781797988
+              extremely_disadvantaged: 0.7106841218202011
+            leaf: true
+          right_child:
+            node_id: 9
+            n_samples: 104
+            predicted_class: 0
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.8928533483882442
+              extremely_disadvantaged: 0.10714665161175589
+            leaf: true
+      right_child:
+        node_id: 10
+        n_samples: 57
+        predicted_class: 1
+        class_distribution:
+          not_disadvantaged: 0
+          extremely_disadvantaged: 0
+        class_probabilities:
+          not_disadvantaged: 0.042677854850480285
+          extremely_disadvantaged: 0.9573221451495197
+        leaf: true
+    right_child:
+      node_id: 11
+      n_samples: 432
+      predicted_class: 1
+      class_distribution:
+        not_disadvantaged: 0
+        extremely_disadvantaged: 0
+      class_probabilities:
+        not_disadvantaged: 0.4722927985896677
+        extremely_disadvantaged: 0.5277072014103323
+      split_feature: d105h
+      split_threshold: 0.5
+      left_child:
+        node_id: 12
+        n_samples: 360
+        predicted_class: 0
+        class_distribution:
+          not_disadvantaged: 0
+          extremely_disadvantaged: 0
+        class_probabilities:
+          not_disadvantaged: 0.6388286447603116
+          extremely_disadvantaged: 0.3611713552396884
+        split_feature: p18_01
+        split_threshold: 45028.0
+        left_child:
+          node_id: 13
+          n_samples: 288
+          predicted_class: 0
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 0
+          class_probabilities:
+            not_disadvantaged: 0.5697935454485252
+            extremely_disadvantaged: 0.4302064545514749
+          split_feature: v137
+          split_threshold: 1.5
+          left_child:
+            node_id: 14
+            n_samples: 154
+            predicted_class: 0
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.7225633892481755
+              extremely_disadvantaged: 0.27743661075182435
+            leaf: true
+          right_child:
+            node_id: 15
+            n_samples: 134
+            predicted_class: 1
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.44276370406766735
+              extremely_disadvantaged: 0.5572362959323327
+            leaf: true
+        right_child:
+          node_id: 16
+          n_samples: 72
+          predicted_class: 0
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 0
+          class_probabilities:
+            not_disadvantaged: 0.9387462481306822
+            extremely_disadvantaged: 0.061253751869317814
+          leaf: true
+      right_child:
+        node_id: 17
+        n_samples: 72
+        predicted_class: 1
+        class_distribution:
+          not_disadvantaged: 0
+          extremely_disadvantaged: 1
+        class_probabilities:
+          not_disadvantaged: 0.0
+          extremely_disadvantaged: 1.0
+        leaf: true
+  right_child:
+    node_id: 18
+    n_samples: 2494
+    predicted_class: 1
+    class_distribution:
+      not_disadvantaged: 0
+      extremely_disadvantaged: 0
+    class_probabilities:
+      not_disadvantaged: 0.14639607981153743
+      extremely_disadvantaged: 0.8536039201884627
+    split_feature: d103c
+    split_threshold: 0.5
+    left_child:
+      node_id: 19
+      n_samples: 1306
+      predicted_class: 1
+      class_distribution:
+        not_disadvantaged: 0
+        extremely_disadvantaged: 0
+      class_probabilities:
+        not_disadvantaged: 0.3332265617222297
+        extremely_disadvantaged: 0.6667734382777704
+      split_feature: d105h
+      split_threshold: 0.5
+      left_child:
+        node_id: 20
+        n_samples: 1021
+        predicted_class: 1
+        class_distribution:
+          not_disadvantaged: 0
+          extremely_disadvantaged: 0
+        class_probabilities:
+          not_disadvantaged: 0.4674715682023259
+          extremely_disadvantaged: 0.5325284317976741
+        split_feature: d110a
+        split_threshold: 0.5
+        left_child:
+          node_id: 21
+          n_samples: 841
+          predicted_class: 0
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 0
+          class_probabilities:
+            not_disadvantaged: 0.6230608566557885
+            extremely_disadvantaged: 0.37693914334421147
+          split_feature: d103a
+          split_threshold: 0.5
+          left_child:
+            node_id: 22
+            n_samples: 740
+            predicted_class: 0
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 0
+            class_probabilities:
+              not_disadvantaged: 0.7672054954762214
+              extremely_disadvantaged: 0.23279450452377864
+            leaf: true
+          right_child:
+            node_id: 23
+            n_samples: 101
+            predicted_class: 1
+            class_distribution:
+              not_disadvantaged: 0
+              extremely_disadvantaged: 1
+            class_probabilities:
+              not_disadvantaged: 0.0
+              extremely_disadvantaged: 1.0
+            leaf: true
+        right_child:
+          node_id: 24
+          n_samples: 180
+          predicted_class: 1
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 1
+          class_probabilities:
+            not_disadvantaged: 0.0
+            extremely_disadvantaged: 1.0
+          leaf: true
+      right_child:
+        node_id: 25
+        n_samples: 285
+        predicted_class: 1
+        class_distribution:
+          not_disadvantaged: 0
+          extremely_disadvantaged: 1
+        class_probabilities:
+          not_disadvantaged: 0.0
+          extremely_disadvantaged: 1.0
+        split_feature: b1_01
+        split_threshold: 3.5
+        left_child:
+          node_id: 26
+          n_samples: 50
+          predicted_class: 1
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 1
+          class_probabilities:
+            not_disadvantaged: 0.0
+            extremely_disadvantaged: 1.0
+          leaf: true
+        right_child:
+          node_id: 27
+          n_samples: 235
+          predicted_class: 1
+          class_distribution:
+            not_disadvantaged: 0
+            extremely_disadvantaged: 1
+          class_probabilities:
+            not_disadvantaged: 0.0
+            extremely_disadvantaged: 1.0
+          leaf: true
+    right_child:
+      node_id: 28
+      n_samples: 1188
+      predicted_class: 1
+      class_distribution:
+        not_disadvantaged: 0
+        extremely_disadvantaged: 1
+      class_probabilities:
+        not_disadvantaged: 0.0
+        extremely_disadvantaged: 1.0
+      leaf: true
