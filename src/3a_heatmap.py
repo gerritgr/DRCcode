@@ -118,6 +118,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 USE_WEIGHTS = False          # Use DHS sampling weights (recommended)
 WEIGHT_VARIABLE = "d005"    # Weight variable to use: "d005" (DV weights) or "v005" (household weights)
                             # Only used if USE_WEIGHTS = True
+MIN_SAMPLES_PER_CELL = 20   # Minimum sample size to display a cell (default: 20)
+                            # Cells with fewer samples will be hidden (shown as blank)
 DPI = 300                   # Resolution of output images (dots per inch)
 CMAP = "RdYlGn_r"          # Color map (Red-Yellow-Green reversed: high=red, low=green)
 FIGSIZE = (10, 8)          # Figure size in inches
@@ -245,7 +247,8 @@ def aggregate_by_wealth_education(data, output_var, wealth_var, education_var,
 
 
 def create_heatmap(data, output_var_desc, wealth_labels, education_labels, 
-                   output_png, output_pdf, vmin=0.0, vmax=1.0, cmap='RdYlGn_r', figsize=(10, 8)):
+                   output_png, output_pdf, vmin=0.0, vmax=1.0, cmap='RdYlGn_r', 
+                   figsize=(10, 8), min_samples=20):
     """
     Create and save heatmap visualization.
     
@@ -271,12 +274,25 @@ def create_heatmap(data, output_var_desc, wealth_labels, education_labels,
         Colormap name
     figsize : tuple
         Figure size (width, height) in inches
+    min_samples : int
+        Minimum number of samples required to display a cell (default 20)
     """
+    # Create a copy of the data to avoid modifying the original
+    data_filtered = data.copy()
+    
+    # Filter cells with fewer than min_samples
+    cells_hidden = (data_filtered['n_women'] < min_samples).sum()
+    if cells_hidden > 0:
+        print(f"    → Hiding {cells_hidden} cells with < {min_samples} samples")
+    
+    # Set prevalence to NaN for cells below threshold (will appear blank)
+    data_filtered.loc[data_filtered['n_women'] < min_samples, 'prevalence'] = np.nan
+    
     # Pivot data to create matrix for heatmap
-    heatmap_data = data.pivot(index='education', columns='wealth', values='prevalence')
+    heatmap_data = data_filtered.pivot(index='education', columns='wealth', values='prevalence')
     
     # Create sample size matrix for annotations
-    sample_sizes = data.pivot(index='education', columns='wealth', values='n_women')
+    sample_sizes = data_filtered.pivot(index='education', columns='wealth', values='n_women')
     
     # Create figure
     fig, ax = plt.subplots(figsize=figsize)
@@ -318,6 +334,10 @@ def create_heatmap(data, output_var_desc, wealth_labels, education_labels,
     else:
         title += 'Unweighted (Simple Proportions)'
     
+    # Add note about minimum sample size if cells are hidden
+    if cells_hidden > 0:
+        title += f'\n(Cells with < {min_samples} samples hidden)'
+    
     ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
     
     # Add sample size annotations (in smaller font below prevalence)
@@ -325,8 +345,10 @@ def create_heatmap(data, output_var_desc, wealth_labels, education_labels,
         for j, wealth_level in enumerate(heatmap_data.columns):
             if not pd.isna(sample_sizes.iloc[i, j]):
                 n = int(sample_sizes.iloc[i, j])
+                # Show sample size in gray if above threshold, red if below
+                color = 'gray' if n >= min_samples else 'red'
                 ax.text(j + 0.5, i + 0.7, f'n={n}', 
-                       ha='center', va='center', fontsize=8, color='gray')
+                       ha='center', va='center', fontsize=8, color=color)
     
     plt.tight_layout()
     
@@ -482,6 +504,7 @@ def main():
     # -------------------------------------------------------------------------
     print("\n[STEP 4/4] Creating heatmap visualizations...")
     print("-" * 70)
+    print(f"  → Minimum samples per cell: {MIN_SAMPLES_PER_CELL}")
 
     output_files = []
     
@@ -523,7 +546,8 @@ def main():
             vmin=VMIN,
             vmax=VMAX,
             cmap=CMAP,
-            figsize=FIGSIZE
+            figsize=FIGSIZE,
+            min_samples=MIN_SAMPLES_PER_CELL
         )
         
         print(f"    ✓ Saved: {output_csv.name}")
@@ -564,6 +588,7 @@ def main():
         print(f"    ({WEIGHT_DESCRIPTIONS.get(WEIGHT_VARIABLE, 'Custom weight')})")
     else:
         print(f"  → Weighting: None (unweighted)")
+    print(f"  → Minimum samples per cell: {MIN_SAMPLES_PER_CELL}")
     print(f"  → Colormap: {CMAP}")
     print(f"  → Color scale: {VMIN:.0%} to {VMAX:.0%} (fixed across all heatmaps)")
 
@@ -571,6 +596,7 @@ def main():
     print("\n📈 INTERPRETATION:")
     print("  → Red cells = High IPV prevalence")
     print("  → Green cells = Low IPV prevalence")
+    print(f"  → Blank cells = Fewer than {MIN_SAMPLES_PER_CELL} samples (unreliable)")
     print("  → H1 hypothesis predicts: Prevalence should decrease")
     print("    from bottom-left (poor, uneducated) to top-right (rich, educated)")
 
