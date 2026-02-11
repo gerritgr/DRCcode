@@ -85,7 +85,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 LINE_WIDTH = 80                 # Width of separator lines
 SECTION_CHAR = '='              # Character for major section separators
 SUBSECTION_CHAR = '-'           # Character for minor section separators
-CATEGORICAL_THRESHOLD = 20      # Variables with ≤10 unique values are categorical
+CATEGORICAL_THRESHOLD = 15      # Variables with ≤10 unique values are categorical
 
 # =============================================================================
 # HELPER FUNCTIONS
