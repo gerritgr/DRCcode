@@ -5,19 +5,47 @@
 DHS Data Visualization Script - DRC 2023-24 Survey (GENERALIZED)
 ================================================================================
 
-Creates one MAP + one CSV per variable in VARIABLES.
+WHAT THIS SCRIPT DOES:
+----------------------
+This script creates MAP visualizations from the processed DHS data for ANY
+set of variables specified in the configuration.
 
-- Circle COLOR = prevalence rate (% "Yes" among *valid respondents* for that item)
-- Circle SIZE  = item-specific sample size (number of valid respondents in cluster)
-- Weighted by v005 (optional)
+1. MAP VISUALIZATIONS: Shows prevalence of violence indicators by cluster
+   - Circle COLOR = Prevalence rate (% of women reporting "Yes")
+   - Circle SIZE = Sample size (number of women interviewed)
+   - Creates separate maps for each indicator in the variable list
 
-INPUT:
-- DATA/DHS/women_all_answers_gps.csv
-- DATA/background.png (optional)
+INPUTS:
+-------
+- DATA/DHS/women_all_answers_gps.csv (created by convert.py)
+- DATA/background.png (optional background map of DRC)
 
-OUTPUT (for each variable X):
-- output/2a_X_map.jpg
-- output/2a_X_map.csv
+OUTPUTS:
+--------
+For each variable in VARIABLES_TO_PLOT:
+- 2a_{variable_name}_map.jpg (map of prevalence)
+- 2a_{variable_name}_map.csv (underlying data)
+
+All outputs are saved in the output/ directory (same level as src/).
+
+USAGE:
+------
+Run from the project root directory:
+    python src/2a_vis_dhs_maps_generalized.py
+
+Or from the src directory:
+    python 2a_vis_dhs_maps_generalized.py
+
+REQUIREMENTS:
+-------------
+- pandas (data manipulation)
+- numpy (numerical operations)
+- matplotlib (plotting)
+- Pillow/PIL (image handling)
+
+Install with:
+    pip install pandas numpy matplotlib Pillow
+
 ================================================================================
 """
 
@@ -32,11 +60,13 @@ from PIL import Image
 # CONFIGURATION
 # =============================================================================
 
-# ✅ Put your variables here
-VARIABLES = ["D111", "D104", "D106", "D108"]
+# VARIABLES TO VISUALIZE
+# Define which DHS variables to create maps for
+VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108"]
 
-# Meanings (from your snippet)
-VAR_MEANING = {
+# VARIABLE DESCRIPTIONS
+# Maps variable codes to their full descriptions for figure titles
+VARIABLE_DESCRIPTIONS = {
     "D111": "Any IPV",
     "D104": "Emotional IPV",
     "D106": "Physical IPV",
@@ -47,336 +77,559 @@ VAR_MEANING = {
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent
 
+# Input files
 DATA_DIR = PROJECT_ROOT / "DATA"
 DHS_DIR = DATA_DIR / "DHS"
-
-# Input files
 INPUT_CSV = DHS_DIR / "women_all_answers_gps.csv"
 BACKGROUND_IMAGE = DATA_DIR / "background.png"
 
-# Output directory
+# Output directory (output/ at same level as src/)
 OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Geographic extent for DRC [min_lon, max_lon, min_lat, max_lat]
-EXTENT = [
-    11.893979235367297, 31.616531541802978,
-    -13.981788316118982, 5.811825978871415
-]
+# These coordinates define the bounding box for the Democratic Republic of Congo
+# Must match the extent of the background.png image
+EXTENT = [11.893979235367297, 31.616531541802978, -13.981788316118982, 5.811825978871415]
 
 # Visualization settings
-USE_WEIGHTS = True
-DPI = 300
-BG_ALPHA = 0.9
-CMAP = "magma"
-CIRCLE_ALPHA = 0.25
+USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
+DPI = 300                   # Resolution of output images (dots per inch)
+BG_ALPHA = 0.9              # Transparency of background map (0=invisible, 1=opaque)
+CMAP = "magma"              # Color map for prevalence (dark purple to yellow)
+CIRCLE_ALPHA = 0.25         # Transparency of cluster circles
 
-SIZE_MIN = 25.0
-SIZE_MAX = 300.0
-
-# DHS-style assumptions for binary items:
-#   1 = Yes, 0 = No, everything else (8/9/etc) treated as invalid/missing.
-YES_VALUE = 1
-VALID_VALUES = {0, 1}
+# Circle size range (in points²)
+SIZE_MIN = 25.0             # Minimum marker area
+SIZE_MAX = 300.0            # Maximum marker area
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
-def weighted_prop_binary(values, weights, yes_value=1, valid_values={0, 1}):
+def weighted_prop(values, weights):
     """
-    Weighted proportion for a binary indicator, restricted to valid_values.
-    Returns NaN if no valid data.
+    Calculate weighted proportion for binary (0/1) data.
+
+    In DHS surveys, different women have different sampling probabilities.
+    We weight each response to get nationally representative estimates.
+
+    FORMULA:
+    Weighted proportion = Sum(value_i × weight_i) / Sum(weight_i)
+
+    Parameters:
+    -----------
+    values : array-like
+        Binary responses (0 or 1, or NaN for missing)
+    weights : array-like
+        Sampling weights (already scaled, i.e., d005/1,000,000)
+
+    Returns:
+    --------
+    float : Weighted proportion between 0 and 1, or NaN if no valid data
     """
     v = pd.to_numeric(pd.Series(values), errors="coerce")
     w = pd.to_numeric(pd.Series(weights), errors="coerce")
 
-    valid_mask = v.isin(valid_values)
-    mask = valid_mask & w.notna() & (w > 0)
+    # Keep only rows where both value and weight are valid
+    mask = v.notna() & w.notna() & (w > 0)
 
     if not mask.any():
         return np.nan
 
-    y = (v[mask] == yes_value).astype(float)
-    return float((y * w[mask]).sum() / w[mask].sum())
+    return float((v[mask] * w[mask]).sum() / w[mask].sum())
 
 
-def unweighted_prop_binary(values, yes_value=1, valid_values={0, 1}):
-    v = pd.to_numeric(pd.Series(values), errors="coerce")
-    v = v[v.isin(valid_values)]
-    if len(v) == 0:
-        return np.nan
-    return float((v == yes_value).mean())
-
-
-def compute_marker_sizes(n_series, size_min=25.0, size_max=300.0):
+def aggregate_variable(data, variable_name, use_weights=True):
     """
-    Percentile-clipped linear scaling of marker AREAS.
-    Returns (sizes_scaled, p05, p95).
+    Aggregate a single variable to cluster level.
+    
+    For DHS data, this function:
+    1. Filters to women who provided a valid answer (0 or 1) to the variable
+    2. Computes the fraction who answered "Yes" (1)
+    3. Uses DHS domestic violence weights (d005/1,000,000) if requested
+    
+    Parameters:
+    -----------
+    data : pd.DataFrame
+        Individual-level data with v001 (cluster), GPS coords, and variables
+    variable_name : str
+        Name of the variable column to aggregate (e.g., 'D111', 'D104')
+    use_weights : bool
+        Whether to use weighted aggregation
+    
+    Returns:
+    --------
+    pd.DataFrame : Cluster-level aggregated data
     """
-    sizes = pd.to_numeric(n_series, errors="coerce").fillna(0).astype(float)
+    # Convert variable name to lowercase for DHS data
+    var_lower = variable_name.lower()
+    
+    if var_lower not in data.columns:
+        raise ValueError(f"Variable '{variable_name}' (or '{var_lower}') not found in data. "
+                         f"Available columns: {list(data.columns)}")
+    
+    # Filter to women who answered this variable (0 or 1, not NaN)
+    # This ensures we only consider those who were asked and answered the question
+    data_with_response = data[data[var_lower].notna()].copy()
+    
+    if len(data_with_response) == 0:
+        # No valid responses for this variable
+        return pd.DataFrame({
+            'cluster_id': [],
+            f'fraction_{variable_name}': [],
+            'n_women': [],
+            'LATNUM': [],
+            'LONGNUM': []
+        })
+    
+    if use_weights:
+        # Use DHS domestic violence weights (d005/1,000,000)
+        # Create sampling_weight column if it doesn't exist
+        if 'sampling_weight' not in data_with_response.columns:
+            if 'd005' in data_with_response.columns:
+                data_with_response['sampling_weight'] = (
+                    pd.to_numeric(data_with_response['d005'], errors='coerce') / 1_000_000.0
+                )
+            else:
+                # Fallback to equal weights
+                data_with_response['sampling_weight'] = 1.0
+        
+        agg = (
+            data_with_response.groupby("v001")
+                .apply(lambda g: pd.Series({
+                    f"fraction_{variable_name}": weighted_prop(
+                        g[var_lower],
+                        g["sampling_weight"]
+                    ),
+                    "n_women": len(g),
+                    "LATNUM": g["LATNUM"].iloc[0] if len(g) > 0 else np.nan,
+                    "LONGNUM": g["LONGNUM"].iloc[0] if len(g) > 0 else np.nan
+                }), include_groups=False)
+                .reset_index()
+                .rename(columns={'v001': 'cluster_id'})
+        )
+    else:
+        agg = (
+            data_with_response.groupby("v001")
+                .agg(**{
+                    f"fraction_{variable_name}": (var_lower, "mean"),
+                    "n_women": ("v001", "size"),
+                    "LATNUM": ("LATNUM", "first"),
+                    "LONGNUM": ("LONGNUM", "first")
+                })
+                .reset_index()
+                .rename(columns={'v001': 'cluster_id'})
+        )
+    
+    return agg
 
-    p05 = float(np.nanpercentile(sizes.to_numpy(), 5))
-    p95 = float(np.nanpercentile(sizes.to_numpy(), 95))
+
+def create_map_visualization(plot_df, variable_name, variable_description, 
+                              sizes, vmin, vmax, title_suffix, subtitle,
+                              output_path, output_csv_path, bg=None):
+    """
+    Create a single map visualization for a variable.
+    
+    Parameters:
+    -----------
+    plot_df : pd.DataFrame
+        Cluster-level data to plot
+    variable_name : str
+        Variable code (e.g., 'D111')
+    variable_description : str
+        Human-readable description (e.g., 'Any IPV')
+    sizes : pd.Series
+        Marker sizes for each cluster
+    vmin, vmax : float
+        Color scale bounds
+    title_suffix : str
+        'Weighted' or 'Unweighted'
+    subtitle : str
+        Subtitle explaining the weighting
+    output_path : Path
+        Where to save the JPG
+    output_csv_path : Path
+        Where to save the CSV
+    bg : PIL.Image or None
+        Background image
+    """
+    fraction_col = f"fraction_{variable_name}"
+    
+    # Filter to valid data
+    df_plot = plot_df.dropna(subset=[fraction_col, "LATNUM", "LONGNUM"]).copy()
+    
+    if len(df_plot) == 0:
+        print(f"  ⚠ No valid data for {variable_name}, skipping...")
+        return 0
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(14, 11))
+    
+    # Add background image
+    if bg is not None:
+        ax.imshow(bg, extent=EXTENT, origin="upper", alpha=BG_ALPHA, zorder=0)
+    
+    # Plot cluster circles
+    sc = ax.scatter(
+        df_plot["LONGNUM"],
+        df_plot["LATNUM"],
+        c=df_plot[fraction_col],
+        s=sizes.loc[df_plot.index],
+        cmap=CMAP,
+        vmin=vmin,
+        vmax=vmax,
+        alpha=CIRCLE_ALPHA,
+        linewidths=0.5,
+        edgecolors="black",
+        zorder=2
+    )
+    
+    ax.set_xlim(EXTENT[0], EXTENT[1])
+    ax.set_ylim(EXTENT[2], EXTENT[3])
+    ax.set_aspect("equal", "box")
+    ax.set_axis_off()
+    ax.set_title(
+        f"Prevalence ({title_suffix})\n{variable_description} — {variable_name}\n{subtitle}",
+        fontsize=14,
+        fontweight="bold",
+        pad=20
+    )
+    
+    # Add colorbar
+    cbar = plt.colorbar(sc, ax=ax, orientation="vertical",
+                        fraction=0.03, pad=0.02)
+    cbar.set_label(
+        f"Fraction Reporting {variable_description}\n(weighted by DV sampling probability)",
+        rotation=90,
+        fontsize=11,
+        labelpad=15
+    )
+    cbar.ax.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda x, p: f'{x:.0%}')
+    )
+    
+    # Add size legend
+    min_n = plot_df["n_women"].min()
+    max_n = plot_df["n_women"].max()
+    legend_samples = [int(min_n), int((min_n + max_n) / 2), int(max_n)]
+    
+    # Get percentiles for size scaling (same as used for sizes calculation)
+    sizes_raw = pd.to_numeric(plot_df["n_women"], errors="coerce").fillna(0).astype(float)
+    p05 = float(np.nanpercentile(sizes_raw.to_numpy(), 5))
+    p95 = float(np.nanpercentile(sizes_raw.to_numpy(), 95))
     if not np.isfinite(p05):
-        p05 = float(sizes.min())
+        p05 = sizes_raw.min()
     if not np.isfinite(p95):
-        p95 = float(sizes.max())
+        p95 = sizes_raw.max()
     if p95 <= p05:
-        p05, p95 = float(sizes.min()), float(sizes.max())
+        p05, p95 = sizes_raw.min(), sizes_raw.max()
         if p95 <= p05:
-            p05, p95 = 0.0, max(1.0, float(sizes.max()))
+            p05, p95 = 0.0, max(1.0, float(sizes_raw.max()))
+    
+    handles = []
+    for n in legend_samples:
+        nn = float(n)
+        nn = min(max(nn, p05), p95)
+        t = 0.0 if p95 <= p05 else (nn - p05) / (p95 - p05)
+        size_val = SIZE_MIN + (SIZE_MAX - SIZE_MIN) * t
+        handles.append(
+            plt.scatter([], [], s=size_val, color="gray", alpha=0.6,
+                        edgecolors="black", linewidths=0.5,
+                        label=f"{n} women")
+        )
+    
+    ax.legend(
+        handles=handles,
+        scatterpoints=1,
+        frameon=True,
+        labelspacing=1.5,
+        title="Number of Women\nInterviewed per Cluster",
+        loc="lower right",
+        fontsize=10,
+        title_fontsize=11
+    )
+    
+    # Save figure
+    plt.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    plt.close()
+    
+    # Save CSV
+    pd.DataFrame({
+        "LONGNUM": df_plot["LONGNUM"],
+        "LATNUM": df_plot["LATNUM"],
+        "value": df_plot[fraction_col],
+        "size": sizes.loc[df_plot.index],
+        "n_women": df_plot["n_women"],
+        "cluster_id": df_plot["cluster_id"],
+    }).to_csv(output_csv_path, index=False)
+    
+    return len(df_plot)
 
-    sizes_clipped = sizes.clip(p05, p95)
-    sizes_normalized = (sizes_clipped - p05) / (p95 - p05) if p95 > p05 else 0.0
-    sizes_scaled = size_min + (size_max - size_min) * sizes_normalized
-    return sizes_scaled, p05, p95
 
+# =============================================================================
+# MAIN PROCESSING
+# =============================================================================
 
 def main():
+    """
+    Main function that orchestrates the MAP visualization workflow.
+    """
+
     print("\n" + "=" * 70)
-    print("DHS DATA VISUALIZATION (GENERALIZED MAPS) - DRC 2023-24 Survey")
+    print("DHS DATA VISUALIZATION (GENERALIZED) - DRC 2023-24 Survey")
     print("=" * 70)
+    print(f"\nVariables to visualize: {', '.join(VARIABLES_TO_PLOT)}")
 
     # -------------------------------------------------------------------------
     # STEP 1: VERIFY INPUT FILES
     # -------------------------------------------------------------------------
-    print("\n[STEP 1/3] Verifying input files...")
+    print("\n[STEP 1/4] Verifying input files...")
     print("-" * 70)
 
     if not INPUT_CSV.exists():
         print(f"ERROR: Input CSV not found at {INPUT_CSV}")
+        print("\nPlease run DATA/DHS/convert.py first to generate this file.")
         sys.exit(1)
 
     print(f"✓ Found input CSV: {INPUT_CSV.name}")
     print(f"  Location: {INPUT_CSV}")
 
+    # Check for background image
     has_background = BACKGROUND_IMAGE.exists()
     if has_background:
         print(f"✓ Found background map: {BACKGROUND_IMAGE.name}")
     else:
         print(f"⚠ Background map not found at {BACKGROUND_IMAGE}")
-        print("  Maps will be created without background image")
+        print(f"  Maps will be created without background image")
 
     # -------------------------------------------------------------------------
-    # STEP 2: LOAD DATA + BASIC PREP
+    # STEP 2: LOAD DATA
     # -------------------------------------------------------------------------
-    print("\n[STEP 2/3] Loading data...")
+    print("\n[STEP 2/4] Loading data...")
     print("-" * 70)
 
-    data = pd.read_csv(INPUT_CSV, low_memory=False)
-    print(f"  → Loaded {len(data):,} women's records")
+    # Load the processed CSV
+    print(f"\nReading: {INPUT_CSV.name}")
+    data = pd.read_csv(INPUT_CSV)
+    print(f"  → Loaded {len(data):,} women's records (all interviewed women)")
+    
+    # Verify cluster ID column exists
+    if 'v001' not in data.columns:
+        print(f"\nERROR: 'v001' (cluster ID) column not found in data")
+        print(f"Available columns: {list(data.columns)}")
+        sys.exit(1)
+    
+    # Verify all variables exist (checking lowercase versions)
+    missing_vars = []
+    for v in VARIABLES_TO_PLOT:
+        if v.lower() not in data.columns:
+            missing_vars.append(v)
+    
+    if missing_vars:
+        print(f"\nERROR: Variables not found in data: {missing_vars}")
+        print(f"Note: Looking for lowercase versions (e.g., 'd111' not 'D111')")
+        print(f"Available columns: {list(data.columns)}")
+        sys.exit(1)
+    
+    print(f"  → All {len(VARIABLES_TO_PLOT)} variables found in data")
 
-    # Normalize column names to handle case mismatches (your header shows lowercase d104 etc.)
-    # We build a mapping from uppercase -> actual column name.
-    col_lookup = {c.upper(): c for c in data.columns}
+    # -------------------------------------------------------------------------
+    # STEP 3: AGGREGATE DATA FOR ALL VARIABLES
+    # -------------------------------------------------------------------------
+    print("\n[STEP 3/4] Aggregating data by cluster...")
+    print("-" * 70)
 
-    # Cluster id: in DHS, v001 is typically the cluster number
-    if "V001" not in col_lookup:
-        raise KeyError("Expected a v001/V001 column for cluster id.")
-    cluster_col = col_lookup["V001"]
-
-    # GPS
-    if "LATNUM" not in col_lookup or "LONGNUM" not in col_lookup:
-        raise KeyError("Expected LATNUM and LONGNUM columns in the input CSV.")
-    lat_col = col_lookup["LATNUM"]
-    lon_col = col_lookup["LONGNUM"]
-
-    # Weights
-    weights = None
     if USE_WEIGHTS:
-        if "V005" not in col_lookup:
-            raise KeyError("USE_WEIGHTS=True but v005/V005 not found.")
-        w_col = col_lookup["V005"]
-        # DHS v005 is typically scaled by 1,000,000
-        data["_w"] = pd.to_numeric(data[w_col], errors="coerce") / 1_000_000.0
-        weights = "_w"
+        print("  Using WEIGHTED aggregation (recommended)")
+        print("  → Accounts for DHS domestic violence sampling design")
+        title_suffix = "Weighted"
+        subtitle = "Weighted by DHS domestic violence sampling probability (d005)"
+    else:
+        print("  Using UNWEIGHTED aggregation")
+        print("  → Simple percentages (not nationally representative)")
+        title_suffix = "Unweighted"
+        subtitle = "Simple percentages (not accounting for sampling design)"
 
-    # Background image (once)
-    bg = None
+    # Aggregate all variables at once
+    all_agg_data = []
+    for var in VARIABLES_TO_PLOT:
+        var_lower = var.lower()
+        print(f"\n  Processing {var} ({VARIABLE_DESCRIPTIONS.get(var, 'Unknown')})...")
+        
+        # Count women who answered this variable
+        n_answered = data[var_lower].notna().sum()
+        n_yes = (data[var_lower] == 1.0).sum()
+        pct_yes = (n_yes / n_answered * 100) if n_answered > 0 else 0
+        print(f"    → {n_answered:,} women answered this question")
+        print(f"    → {n_yes:,} answered 'Yes' ({pct_yes:.1f}%)")
+        
+        agg = aggregate_variable(data, var, USE_WEIGHTS)
+        
+        # Keep only the fraction column and merge with other data
+        fraction_col = f"fraction_{var}"
+        if len(all_agg_data) == 0:
+            # First variable - include all columns
+            all_agg_data.append(agg)
+        else:
+            # Subsequent variables - only add the fraction column
+            all_agg_data[0] = all_agg_data[0].merge(
+                agg[["cluster_id", fraction_col]], 
+                on="cluster_id", 
+                how="outer"
+            )
+        
+        mean_val = agg[fraction_col].mean()
+        print(f"    → Cluster-level mean prevalence: {mean_val:.1%}")
+        print(f"    → {len(agg):,} clusters with data for this variable")
+    
+    # Consolidated aggregated data
+    agg_consolidated = all_agg_data[0]
+    print(f"\n  → Consolidated data: {len(agg_consolidated):,} total clusters")
+
+    # Filter to valid data within map extent
+    print("\n  Filtering to clusters within map extent...")
+    
+    # Require at least one valid fraction value
+    fraction_cols = [f"fraction_{v}" for v in VARIABLES_TO_PLOT]
+    has_any_data = agg_consolidated[fraction_cols].notna().any(axis=1)
+    
+    plot_df = agg_consolidated[
+        (agg_consolidated["LONGNUM"] >= EXTENT[0]) & 
+        (agg_consolidated["LONGNUM"] <= EXTENT[1]) &
+        (agg_consolidated["LATNUM"] >= EXTENT[2]) & 
+        (agg_consolidated["LATNUM"] <= EXTENT[3]) &
+        has_any_data
+    ].copy()
+
+    print(f"    → {len(plot_df):,} clusters within map extent with valid data")
+
+    if len(plot_df) == 0:
+        print("\nERROR: No clusters to plot!")
+        print("Check that:")
+        print("  1. GPS coordinates are valid")
+        print("  2. EXTENT matches your study area")
+        print("  3. Women have answered the indicators")
+        sys.exit(1)
+
+    # -------------------------------------------------------------------------
+    # STEP 4: CREATE MAP VISUALIZATIONS
+    # -------------------------------------------------------------------------
+    print("\n[STEP 4/4] Creating map visualizations...")
+    print("-" * 70)
+
+    # Load background image if available
     if has_background:
         bg = Image.open(BACKGROUND_IMAGE).convert("RGBA")
+        print(f"✓ Loaded background image: {bg.size[0]}×{bg.size[1]} pixels")
+    else:
+        bg = None
 
-    # -------------------------------------------------------------------------
-    # STEP 3: LOOP VARIABLES AND CREATE OUTPUTS
-    # -------------------------------------------------------------------------
-    print("\n[STEP 3/3] Creating outputs...")
-    print("-" * 70)
+    # Determine shared color scale across all maps
+    vmin = 0.0
+    vmax = 0.0
+    for var in VARIABLES_TO_PLOT:
+        fraction_col = f"fraction_{var}"
+        var_max = float(np.nanmax(plot_df[fraction_col].to_numpy()))
+        if np.isfinite(var_max):
+            vmax = max(vmax, var_max)
+    
+    if vmax <= 0:
+        vmax = 1.0
 
-    for var in VARIABLES:
-        var_u = var.upper()
-        if var_u not in col_lookup:
-            print(f"\n⚠ Skipping {var}: column not found in CSV.")
-            continue
+    print(f"\nColor scale (magma colormap):")
+    print(f"  → Dark purple = 0% prevalence")
+    print(f"  → Bright yellow = {vmax:.1%} prevalence (max across all variables)")
 
-        var_col = col_lookup[var_u]
-        meaning = VAR_MEANING.get(var_u, "Unknown meaning")
+    # Scale marker sizes using percentile clipping
+    sizes = pd.to_numeric(plot_df["n_women"], errors="coerce").fillna(0).astype(float)
 
-        print(f"\n--- Variable {var_u}: {meaning} ---")
+    p05 = float(np.nanpercentile(sizes.to_numpy(), 5))
+    p95 = float(np.nanpercentile(sizes.to_numpy(), 95))
+    if not np.isfinite(p05):
+        p05 = sizes.min()
+    if not np.isfinite(p95):
+        p95 = sizes.max()
+    if p95 <= p05:
+        p05, p95 = sizes.min(), sizes.max()
+        if p95 <= p05:
+            p05, p95 = 0.0, max(1.0, float(sizes.max()))
 
-        # Restrict to rows that answered this question (valid values only)
-        v_num = pd.to_numeric(data[var_col], errors="coerce")
-        answered_mask = v_num.isin(VALID_VALUES)
+    sizes_clipped = sizes.clip(p05, p95)
+    sizes_normalized = (sizes_clipped - p05) / (p95 - p05)
+    sizes = SIZE_MIN + (SIZE_MAX - SIZE_MIN) * sizes_normalized
 
-        # If nothing answered, skip
-        n_answered = int(answered_mask.sum())
-        if n_answered == 0:
-            print(f"  ⚠ No valid answers (values in {VALID_VALUES}) found for {var_u}. Skipping.")
-            continue
+    min_n = plot_df["n_women"].min()
+    max_n = plot_df["n_women"].max()
 
-        df = data.loc[answered_mask, [cluster_col, lat_col, lon_col, var_col] + ([weights] if USE_WEIGHTS else [])].copy()
-        df.rename(columns={cluster_col: "cluster_id", lat_col: "LATNUM", lon_col: "LONGNUM"}, inplace=True)
+    print(f"\nCircle sizes (area-scaled with percentile clipping):")
+    print(f"  → Smallest cluster: {min_n:.0f} women")
+    print(f"  → Largest cluster: {max_n:.0f} women")
+    print(f"  → Marker area range: {SIZE_MIN:.0f} to {SIZE_MAX:.0f} points²")
 
-        # Aggregate to cluster level (item-specific!)
-        if USE_WEIGHTS:
-            agg = (
-                df.groupby("cluster_id")
-                  .apply(lambda g: pd.Series({
-                      "fraction": weighted_prop_binary(g[var_col], g[weights], yes_value=YES_VALUE, valid_values=VALID_VALUES),
-                      "n_women": len(g),
-                      "LATNUM": g["LATNUM"].iloc[0] if len(g) > 0 else np.nan,
-                      "LONGNUM": g["LONGNUM"].iloc[0] if len(g) > 0 else np.nan,
-                  }), include_groups=False)
-                  .reset_index()
-            )
-            title_suffix = "Weighted"
-            subtitle = "Weighted by DHS sampling probability (v005)"
-        else:
-            agg = (
-                df.groupby("cluster_id")
-                  .agg(
-                      fraction=(var_col, lambda s: unweighted_prop_binary(s, yes_value=YES_VALUE, valid_values=VALID_VALUES)),
-                      n_women=(var_col, "size"),
-                      LATNUM=("LATNUM", "first"),
-                      LONGNUM=("LONGNUM", "first"),
-                  )
-                  .reset_index()
-            )
-            title_suffix = "Unweighted"
-            subtitle = "Simple percentages (not accounting for sampling design)"
-
-        # Filter to map extent + valid fraction
-        plot_df = agg[
-            (agg["LONGNUM"] >= EXTENT[0]) & (agg["LONGNUM"] <= EXTENT[1]) &
-            (agg["LATNUM"] >= EXTENT[2]) & (agg["LATNUM"] <= EXTENT[3]) &
-            agg["fraction"].notna()
-        ].copy()
-
-        print(f"  → Valid respondents (overall): {n_answered:,}")
-        print(f"  → Clusters with data in extent: {len(plot_df):,}")
-        if len(plot_df) == 0:
-            print("  ⚠ No clusters to plot after filtering. Skipping.")
-            continue
-
-        # Marker sizes based on item-specific n_women
-        sizes_scaled, p05, p95 = compute_marker_sizes(plot_df["n_women"], SIZE_MIN, SIZE_MAX)
-
-        # Color scale (per variable)
-        vmin = 0.0
-        vmax = float(np.nanmax(plot_df["fraction"].to_numpy()))
-        if not np.isfinite(vmax) or vmax <= 0:
-            vmax = 1.0
-
-        # Create figure
-        fig, ax = plt.subplots(figsize=(14, 11))
-        if bg is not None:
-            ax.imshow(bg, extent=EXTENT, origin="upper", alpha=BG_ALPHA, zorder=0)
-
-        sc = ax.scatter(
-            plot_df["LONGNUM"],
-            plot_df["LATNUM"],
-            c=plot_df["fraction"],
-            s=sizes_scaled,
-            cmap=CMAP,
+    # Create maps for each variable
+    output_files = []
+    
+    for i, var in enumerate(VARIABLES_TO_PLOT, 1):
+        var_desc = VARIABLE_DESCRIPTIONS.get(var, var)
+        print(f"\n[{i}/{len(VARIABLES_TO_PLOT)}] Creating map for {var} ({var_desc})...")
+        
+        output_jpg = OUTPUT_DIR / f"2a_{var}_map.jpg"
+        output_csv = OUTPUT_DIR / f"2a_{var}_map.csv"
+        
+        n_plotted = create_map_visualization(
+            plot_df=plot_df,
+            variable_name=var,
+            variable_description=var_desc,
+            sizes=sizes,
             vmin=vmin,
             vmax=vmax,
-            alpha=CIRCLE_ALPHA,
-            linewidths=0.5,
-            edgecolors="black",
-            zorder=2
+            title_suffix=title_suffix,
+            subtitle=subtitle,
+            output_path=output_jpg,
+            output_csv_path=output_csv,
+            bg=bg
         )
+        
+        if n_plotted > 0:
+            print(f"  ✓ Saved: {output_jpg.name}")
+            print(f"  ✓ Saved: {output_csv.name}")
+            print(f"    → {n_plotted:,} clusters plotted")
+            output_files.append((var, var_desc, output_jpg, output_csv, n_plotted))
 
-        ax.set_xlim(EXTENT[0], EXTENT[1])
-        ax.set_ylim(EXTENT[2], EXTENT[3])
-        ax.set_aspect("equal", "box")
-        ax.set_axis_off()
-
-        ax.set_title(
-            f"Prevalence ({title_suffix})\n{meaning} — {var_u}\n{subtitle}",
-            fontsize=14,
-            fontweight="bold",
-            pad=20
-        )
-
-        cbar = plt.colorbar(sc, ax=ax, orientation="vertical", fraction=0.03, pad=0.02)
-        cbar.set_label(
-            f"Fraction Reporting 'Yes' ({meaning})\n"
-            + ("(weighted by sampling probability)" if USE_WEIGHTS else "(unweighted)"),
-            rotation=90,
-            fontsize=11,
-            labelpad=15
-        )
-        cbar.ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{x:.0%}"))
-
-        # Size legend
-        min_n = int(plot_df["n_women"].min())
-        max_n = int(plot_df["n_women"].max())
-        legend_samples = [min_n, int((min_n + max_n) / 2), max_n]
-        handles = []
-        for n in legend_samples:
-            nn = float(n)
-            nn = min(max(nn, p05), p95)
-            t = 0.0 if p95 <= p05 else (nn - p05) / (p95 - p05)
-            size_val = SIZE_MIN + (SIZE_MAX - SIZE_MIN) * t
-            handles.append(
-                plt.scatter([], [], s=size_val, color="gray", alpha=0.6,
-                            edgecolors="black", linewidths=0.5,
-                            label=f"{n} women")
-            )
-
-        ax.legend(
-            handles=handles,
-            scatterpoints=1,
-            frameon=True,
-            labelspacing=1.5,
-            title="Valid Respondents\nper Cluster",
-            loc="lower right",
-            fontsize=10,
-            title_fontsize=11
-        )
-
-        # Save outputs (must start with 2a)
-        out_img = OUTPUT_DIR / f"2a_{var_u}_map.jpg"
-        plt.savefig(out_img, dpi=DPI, bbox_inches="tight")
-        plt.close(fig)
-
-        out_csv = OUTPUT_DIR / f"2a_{var_u}_map.csv"
-        pd.DataFrame({
-            "LONGNUM": plot_df["LONGNUM"],
-            "LATNUM": plot_df["LATNUM"],
-            "value": plot_df["fraction"],
-            "size": sizes_scaled,
-            "n_women": plot_df["n_women"],
-            "cluster_id": plot_df["cluster_id"],
-            "variable": var_u,
-            "meaning": meaning,
-        }).to_csv(out_csv, index=False)
-
-        print(f"  ✓ Saved: {out_img.name}")
-        print(f"  ✓ Saved: {out_csv.name}")
-        print(f"  → Mean prevalence across plotted clusters: {plot_df['fraction'].mean():.1%}")
-
+    # -------------------------------------------------------------------------
+    # SUMMARY
+    # -------------------------------------------------------------------------
     print("\n" + "=" * 70)
-    print("DONE.")
+    print("VISUALIZATION COMPLETE!")
     print("=" * 70)
-    print(f"Outputs saved in: {OUTPUT_DIR}")
+    print(f"\n📊 OUTPUT FILES (saved in {OUTPUT_DIR.name}/):\n")
+    
+    for i, (var, desc, jpg, csv, n) in enumerate(output_files, 1):
+        print(f"  {2*i-1}. {jpg.name}")
+        print(f"     → Map of {desc} ({var}) prevalence")
+        print(f"     → {n:,} clusters visualized")
+        print(f"\n  {2*i}. {csv.name}")
+        print(f"     → Data behind the {desc} map (location/value/size)\n")
 
+    print(f"⚙️  Settings:")
+    print(f"  → Variables: {', '.join(VARIABLES_TO_PLOT)}")
+    print(f"  → Weighting: {title_suffix}")
+    print(f"  → Resolution: {DPI} DPI")
+    print(f"  → Background map: {'Yes' if has_background else 'No'}")
+
+    print("\n✅ All visualizations created successfully!\n")
+
+
+# =============================================================================
+# RUN THE SCRIPT
+# =============================================================================
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠ Interrupted by user.")
+        print("\n\n⚠ Visualization interrupted by user.")
         sys.exit(1)
     except Exception as e:
         print(f"\n\n❌ ERROR: {e}")

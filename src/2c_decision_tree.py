@@ -134,9 +134,22 @@ TREE_MIN_SAMPLES_SPLIT = 100      # Minimum samples to split a node
 TREE_MIN_SAMPLES_LEAF = 50        # Minimum samples in a leaf
 TREE_CRITERION = 'gini'           # Split criterion: 'gini' or 'entropy'
 TREE_CLASS_WEIGHT = 'balanced'    # Handle class imbalance
+TREE_MAX_FEATURES = 0.8           # Fraction of features to consider (adds randomness)
+TREE_MIN_IMPURITY_DECREASE = 0.0  # Minimum impurity decrease for split
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ENSEMBLE & SELECTION PARAMETERS
+# ─────────────────────────────────────────────────────────────────────────────
+N_TREES_TO_TRAIN = 20             # Number of trees to train
+ENABLE_TREE_SELECTION = True      # Enable training multiple trees and selecting best
+VALIDATION_SIZE = 0.15            # Validation set size (from training data)
 ENABLE_PRUNING = True             # Enable automatic post-pruning
 PRUNING_METHOD = 'cost_complexity' # Pruning method: 'cost_complexity'
-RANDOM_STATE = 42                 # For reproducibility
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RANDOM SEEDS
+# ─────────────────────────────────────────────────────────────────────────────
+MASTER_SEED = 42                  # Master random seed for reproducibility
 TEST_SIZE = 0.2                   # Train/test split (20% test)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -526,6 +539,8 @@ def prune_tree(clf, X_train, y_train, X_test, y_test, weights=None):
             criterion=clf.criterion,
             class_weight=clf.class_weight,
             random_state=clf.random_state,
+            max_features=clf.max_features,
+            min_impurity_decrease=clf.min_impurity_decrease,
             ccp_alpha=ccp_alpha  # This is the pruning parameter
         )
         
@@ -578,6 +593,152 @@ def prune_tree(clf, X_train, y_train, X_test, y_test, weights=None):
     }
     
     return best_clf, pruning_info
+
+
+def train_and_select_best_tree(X_train_full, y_train_full, X_test, y_test, 
+                                weights_full=None, n_trees=20, 
+                                validation_size=0.15, master_seed=42):
+    """
+    Train multiple decision trees with different random seeds and select the best.
+    
+    This approach introduces controlled randomness to explore different tree structures:
+    1. Split training data into train + validation sets
+    2. Train N trees with different random seeds and feature subsampling
+    3. Evaluate each tree on validation set
+    4. Select the best performing tree
+    5. Optionally prune the best tree
+    6. Final evaluation on held-out test set
+    
+    Parameters:
+    -----------
+    X_train_full : pd.DataFrame
+        Full training features
+    y_train_full : pd.Series
+        Full training labels
+    X_test : pd.DataFrame
+        Test features (held out for final evaluation)
+    y_test : pd.Series
+        Test labels
+    weights_full : pd.Series or None
+        Sample weights for full training set
+    n_trees : int
+        Number of trees to train
+    validation_size : float
+        Fraction of training data to use for validation
+    master_seed : int
+        Master random seed
+    
+    Returns:
+    --------
+    tuple : (best_clf, selection_info)
+        - best_clf: The best performing tree
+        - selection_info: Dict with selection statistics
+    """
+    print(f"\n  Training {n_trees} trees with different random seeds...")
+    
+    # Split training data into train + validation
+    # Use master_seed for reproducibility of this split
+    indices = np.arange(len(X_train_full))
+    
+    # Stratified split
+    from sklearn.model_selection import train_test_split as split
+    train_idx, val_idx = split(
+        indices, 
+        test_size=validation_size, 
+        random_state=master_seed,
+        stratify=y_train_full
+    )
+    
+    X_train = X_train_full.iloc[train_idx]
+    y_train = y_train_full.iloc[train_idx]
+    X_val = X_train_full.iloc[val_idx]
+    y_val = y_train_full.iloc[val_idx]
+    
+    weights_train = weights_full.iloc[train_idx] if weights_full is not None else None
+    weights_val = weights_full.iloc[val_idx] if weights_full is not None else None
+    
+    print(f"    → Training set: {len(X_train):,} samples")
+    print(f"    → Validation set: {len(X_val):,} samples")
+    print(f"    → Test set: {len(X_test):,} samples")
+    
+    # Train multiple trees
+    trees = []
+    train_scores = []
+    val_scores = []
+    
+    for i in range(n_trees):
+        # Use different seed for each tree to introduce randomness
+        tree_seed = master_seed + i
+        
+        clf = DecisionTreeClassifier(
+            max_depth=TREE_MAX_DEPTH,
+            min_samples_split=TREE_MIN_SAMPLES_SPLIT,
+            min_samples_leaf=TREE_MIN_SAMPLES_LEAF,
+            criterion=TREE_CRITERION,
+            class_weight=TREE_CLASS_WEIGHT,
+            max_features=TREE_MAX_FEATURES,  # Random feature subsampling
+            min_impurity_decrease=TREE_MIN_IMPURITY_DECREASE,
+            random_state=tree_seed,
+            splitter='random'  # Use random splits for more diversity
+        )
+        
+        clf.fit(X_train, y_train, sample_weight=weights_train)
+        
+        # Evaluate on validation set
+        train_acc = clf.score(X_train, y_train, sample_weight=weights_train)
+        val_acc = clf.score(X_val, y_val, sample_weight=weights_val)
+        
+        trees.append(clf)
+        train_scores.append(train_acc)
+        val_scores.append(val_acc)
+        
+        if (i + 1) % 5 == 0:
+            print(f"    → Trained {i + 1}/{n_trees} trees...")
+    
+    # Select best tree based on validation performance
+    best_idx = np.argmax(val_scores)
+    best_clf = trees[best_idx]
+    best_seed = master_seed + best_idx
+    
+    # Get statistics
+    best_train_acc = train_scores[best_idx]
+    best_val_acc = val_scores[best_idx]
+    best_test_acc = best_clf.score(X_test, y_test)
+    
+    print(f"\n  ✓ Best tree selected:")
+    print(f"    → Tree #{best_idx + 1} (seed={best_seed})")
+    print(f"    → Training accuracy: {best_train_acc:.4f}")
+    print(f"    → Validation accuracy: {best_val_acc:.4f}")
+    print(f"    → Test accuracy: {best_test_acc:.4f}")
+    print(f"    → Depth: {best_clf.get_depth()}")
+    print(f"    → Leaves: {best_clf.get_n_leaves()}")
+    
+    # Statistics across all trees
+    mean_val_acc = np.mean(val_scores)
+    std_val_acc = np.std(val_scores)
+    
+    selection_info = {
+        'enabled': True,
+        'n_trees_trained': n_trees,
+        'validation_size': validation_size,
+        'best_tree_index': int(best_idx),
+        'best_tree_seed': int(best_seed),
+        'best_tree': {
+            'training_accuracy': float(best_train_acc),
+            'validation_accuracy': float(best_val_acc),
+            'test_accuracy': float(best_test_acc),
+            'depth': int(best_clf.get_depth()),
+            'n_leaves': int(best_clf.get_n_leaves())
+        },
+        'all_trees_statistics': {
+            'mean_validation_accuracy': float(mean_val_acc),
+            'std_validation_accuracy': float(std_val_acc),
+            'min_validation_accuracy': float(np.min(val_scores)),
+            'max_validation_accuracy': float(np.max(val_scores))
+        }
+    }
+    
+    return best_clf, selection_info
 
 
 # =============================================================================
@@ -703,14 +864,14 @@ def main():
         sys.exit(1)
     
     # -------------------------------------------------------------------------
-    # STEP 6: TRAIN DECISION TREE
+    # STEP 6: TRAIN DECISION TREE(S)
     # -------------------------------------------------------------------------
     print("\n[STEP 6/7] Training decision tree...")
     print("-" * 70)
     
     print(f"\nSplitting data (test size = {TEST_SIZE:.0%})...")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
+        X, y, test_size=TEST_SIZE, random_state=MASTER_SEED, stratify=y
     )
     
     print(f"  → Training: {len(X_train):,} samples")
@@ -722,28 +883,46 @@ def main():
         print("  → Using DHS sampling weights (v005)")
         weights = data.loc[X_train.index, 'v005'] / 1_000_000.0
     
-    # Train tree
+    # Tree hyperparameters
     print(f"\nTree hyperparameters:")
     print(f"  → Max depth: {TREE_MAX_DEPTH}")
     print(f"  → Min samples split: {TREE_MIN_SAMPLES_SPLIT}")
     print(f"  → Min samples leaf: {TREE_MIN_SAMPLES_LEAF}")
     print(f"  → Criterion: {TREE_CRITERION}")
     print(f"  → Class weight: {TREE_CLASS_WEIGHT}")
+    print(f"  → Max features: {TREE_MAX_FEATURES}")
     
-    clf = DecisionTreeClassifier(
-        max_depth=TREE_MAX_DEPTH,
-        min_samples_split=TREE_MIN_SAMPLES_SPLIT,
-        min_samples_leaf=TREE_MIN_SAMPLES_LEAF,
-        criterion=TREE_CRITERION,
-        class_weight=TREE_CLASS_WEIGHT,
-        random_state=RANDOM_STATE
-    )
+    # ─────────────────────────────────────────────────────────────────────────
+    # TRAIN MULTIPLE TREES AND SELECT BEST (if enabled)
+    # ─────────────────────────────────────────────────────────────────────────
+    selection_info = {'enabled': False}
     
-    clf.fit(X_train, y_train, sample_weight=weights)
-    
-    print(f"\n  ✓ Tree trained")
-    print(f"    → Actual depth: {clf.get_depth()}")
-    print(f"    → Number of leaves: {clf.get_n_leaves()}")
+    if ENABLE_TREE_SELECTION:
+        print(f"\n  Ensemble training: {N_TREES_TO_TRAIN} trees")
+        clf, selection_info = train_and_select_best_tree(
+            X_train, y_train, X_test, y_test,
+            weights_full=weights,
+            n_trees=N_TREES_TO_TRAIN,
+            validation_size=VALIDATION_SIZE,
+            master_seed=MASTER_SEED
+        )
+    else:
+        # Train single tree (original approach)
+        print(f"\n  Training single tree (seed={MASTER_SEED})...")
+        clf = DecisionTreeClassifier(
+            max_depth=TREE_MAX_DEPTH,
+            min_samples_split=TREE_MIN_SAMPLES_SPLIT,
+            min_samples_leaf=TREE_MIN_SAMPLES_LEAF,
+            criterion=TREE_CRITERION,
+            class_weight=TREE_CLASS_WEIGHT,
+            max_features=TREE_MAX_FEATURES,
+            min_impurity_decrease=TREE_MIN_IMPURITY_DECREASE,
+            random_state=MASTER_SEED
+        )
+        clf.fit(X_train, y_train, sample_weight=weights)
+        print(f"  ✓ Tree trained")
+        print(f"    → Depth: {clf.get_depth()}")
+        print(f"    → Leaves: {clf.get_n_leaves()}")
     
     # ─────────────────────────────────────────────────────────────────────────
     # APPLY PRUNING (if enabled)
@@ -755,9 +934,9 @@ def main():
         clf, pruning_info = prune_tree(clf, X_train, y_train, X_test, y_test, weights)
         print(f"  ✓ Pruning complete")
     else:
-        print(f"\n  ⚠ Pruning disabled (set ENABLE_PRUNING=True to enable)")
+        print(f"\n  ⚠ Pruning disabled")
     
-    # Evaluate
+    # Final evaluation
     y_pred_train = clf.predict(X_train)
     y_pred_test = clf.predict(X_test)
     
@@ -799,11 +978,16 @@ def main():
                 'min_samples_leaf': TREE_MIN_SAMPLES_LEAF,
                 'criterion': TREE_CRITERION,
                 'class_weight': TREE_CLASS_WEIGHT,
-                'random_state': RANDOM_STATE,
+                'max_features': TREE_MAX_FEATURES,
+                'min_impurity_decrease': TREE_MIN_IMPURITY_DECREASE,
+                'master_seed': MASTER_SEED,
                 'min_valid_response_rate': MIN_VALID_RESPONSE_RATE,
                 'categorical_threshold': CATEGORICAL_THRESHOLD,
-                'pruning_enabled': ENABLE_PRUNING
+                'pruning_enabled': ENABLE_PRUNING,
+                'tree_selection_enabled': ENABLE_TREE_SELECTION,
+                'n_trees_trained': N_TREES_TO_TRAIN if ENABLE_TREE_SELECTION else 1
             },
+            'tree_selection': selection_info,
             'pruning': pruning_info
         },
         'performance_metrics': {
@@ -842,8 +1026,15 @@ def main():
              class_names=['Not Disadvantaged', 'Extremely Disadvantaged'],
              filled=True, rounded=True, fontsize=FONT_SIZE, ax=ax, proportion=True)
     
-    pruning_status = "(Pruned)" if ENABLE_PRUNING and pruning_info['enabled'] else ""
-    ax.set_title(f'Decision Tree: Predicting Extreme Disadvantage {pruning_status}\n'
+    # Build title with status indicators
+    title_parts = []
+    if ENABLE_TREE_SELECTION and selection_info['enabled']:
+        title_parts.append(f"Best of {N_TREES_TO_TRAIN}")
+    if ENABLE_PRUNING and pruning_info['enabled']:
+        title_parts.append("Pruned")
+    
+    status = f" ({', '.join(title_parts)})" if title_parts else ""
+    ax.set_title(f'Decision Tree: Predicting Extreme Disadvantage{status}\n'
                 f'DRC DHS 2023-24 (n={len(X):,}, depth={clf.get_depth()}, leaves={clf.get_n_leaves()})',
                 fontsize=16, fontweight='bold', pad=20)
     
