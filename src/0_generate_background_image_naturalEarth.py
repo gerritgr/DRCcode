@@ -16,6 +16,7 @@ min_lat = -13.981788316118982
 max_lat = 5.811825978871415
 
 OUTPATH = "../DATA/background.png"  # final image saved here
+OUTPATH_NONAMES = "../DATA/background_nonames.png"  # <-- ADDED: version without names
 
 # temporary working directory (must not already exist)
 out_dir = "_TEMP_aoi_square_outputs"
@@ -113,68 +114,79 @@ try:
         max_lat2 = max(max_lat, kin_lat + pad)
 
     # ------------------ Stylized render ------------------
+    def render_map(ax, with_names: bool):  # <-- ADDED
+        # Background (white)
+        countries_clip.plot(ax=ax, facecolor="white", linewidth=0)
+
+        # --- ADDED: Water bodies (lakes) ---
+        if len(lakes_clip) > 0:
+            lakes_clip.plot(ax=ax, linewidth=0, alpha=0.28)  # subtle fill, no outlines
+
+        # Provinces inside DRC (thin)
+        # Natural Earth admin1 has "adm0_a3" for country code in most versions
+        if "adm0_a3" in admin1_clip.columns:
+            admin1_drc = admin1_clip[admin1_clip["adm0_a3"] == "COD"]
+        else:
+            # fallback by name if needed
+            admin1_drc = admin1_clip
+        admin1_drc.boundary.plot(ax=ax, linewidth=0.9, alpha=0.95)
+
+        # Other countries' borders (lower opacity)
+        if len(others) > 0:
+            others.boundary.plot(ax=ax, linewidth=1.4, alpha=0.15)
+
+        # DRC border (high emphasis)
+        if len(drc) > 0:
+            drc.boundary.plot(ax=ax, linewidth=2.6, alpha=1.0)
+
+        # --- ADDED: Neighbor country labels (low opacity, small text) ---
+        # Pick a reasonable label column
+        if with_names:  # <-- ADDED
+            name_col = None
+            for c in ["NAME_EN", "NAME", "ADMIN", "FORMAL_EN"]:
+                if c in others.columns:
+                    name_col = c
+                    break
+
+            if name_col and len(others) > 0:
+                # representative_point() stays inside polygon (better than centroid)
+                label_pts = others.geometry.representative_point()
+                for (x, y), nm in zip(zip(label_pts.x, label_pts.y), others[name_col].astype(str)):
+                    ax.text(
+                        x, y, nm,
+                        fontsize=13,
+                        alpha=0.5,
+                        ha="center", va="center"
+                    )
+
+        # Capital marker + label
+        ax.scatter([kin_lon], [kin_lat], marker="*", s=800, c="black", edgecolors="white", alpha=0.9)  # marker
+        if with_names:  # <-- ADDED
+            ax.text(kin_lon + 0.50, kin_lat - 0.15, "Kinshasa", fontsize=25, c="black")
+
+        # Extent
+        ax.set_xlim(min_lon2, max_lon2)
+        ax.set_ylim(min_lat2, max_lat2)
+        ax.set_axis_off()
+
+    # --- ADDED: render both variants ---
     fig, ax = plt.subplots(figsize=(10, 10), dpi=450)
-
-    # Background (white)
-    countries_clip.plot(ax=ax, facecolor="white", linewidth=0)
-
-    # --- ADDED: Water bodies (lakes) ---
-    if len(lakes_clip) > 0:
-        lakes_clip.plot(ax=ax, linewidth=0, alpha=0.28)  # subtle fill, no outlines
-
-    # Provinces inside DRC (thin)
-    # Natural Earth admin1 has "adm0_a3" for country code in most versions
-    if "adm0_a3" in admin1_clip.columns:
-        admin1_drc = admin1_clip[admin1_clip["adm0_a3"] == "COD"]
-    else:
-        # fallback by name if needed
-        admin1_drc = admin1_clip
-    admin1_drc.boundary.plot(ax=ax, linewidth=0.9, alpha=0.95)
-
-    # Other countries' borders (lower opacity)
-    if len(others) > 0:
-        others.boundary.plot(ax=ax, linewidth=1.4, alpha=0.15)
-
-    # DRC border (high emphasis)
-    if len(drc) > 0:
-        drc.boundary.plot(ax=ax, linewidth=2.6, alpha=1.0)
-
-    # --- ADDED: Neighbor country labels (low opacity, small text) ---
-    # Pick a reasonable label column
-    name_col = None
-    for c in ["NAME_EN", "NAME", "ADMIN", "FORMAL_EN"]:
-        if c in others.columns:
-            name_col = c
-            break
-
-    if name_col and len(others) > 0:
-        # representative_point() stays inside polygon (better than centroid)
-        label_pts = others.geometry.representative_point()
-        for (x, y), nm in zip(zip(label_pts.x, label_pts.y), others[name_col].astype(str)):
-            ax.text(
-                x, y, nm,
-                fontsize=13,
-                alpha=0.5,
-                ha="center", va="center"
-            )
-
-    # Capital marker + label
-    ax.scatter([kin_lon], [kin_lat], s=100, c="black", edgecolors="white")  # marker
-    ax.text(kin_lon + 0.15, kin_lat - 0.15, "Kinshasa", fontsize=25, c="black")
-
-    # Extent
-    ax.set_xlim(min_lon2, max_lon2)
-    ax.set_ylim(min_lat2, max_lat2)
-    ax.set_axis_off()
+    render_map(ax, with_names=True)
     plt.tight_layout(pad=0)
-
-    # Save final image
     os.makedirs(os.path.dirname(OUTPATH), exist_ok=True)
     plt.savefig(OUTPATH, bbox_inches="tight", pad_inches=0)
     plt.close(fig)
 
+    fig, ax = plt.subplots(figsize=(10, 10), dpi=450)
+    render_map(ax, with_names=False)
+    plt.tight_layout(pad=0)
+    os.makedirs(os.path.dirname(OUTPATH_NONAMES), exist_ok=True)
+    plt.savefig(OUTPATH_NONAMES, bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
+
     print("Saved:")
     print(" - Final background:", os.path.abspath(OUTPATH))
+    print(" - Final background (no names):", os.path.abspath(OUTPATH_NONAMES))
 
 finally:
     shutil.rmtree(out_dir, ignore_errors=True)

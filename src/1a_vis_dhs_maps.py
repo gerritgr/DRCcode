@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ================================================================================
-DHS Data Visualization Script - DRC 2023-24 Survey
+DHS Data Visualization Script - DRC 2023-24 Survey STILL USES WRONG WEIGHTS 
 ================================================================================
 
 WHAT THIS SCRIPT DOES:

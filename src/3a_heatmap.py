@@ -115,7 +115,7 @@ OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Visualization settings
-USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
+USE_WEIGHTS = False          # Use DHS sampling weights (recommended)
 WEIGHT_VARIABLE = "d005"    # Weight variable to use: "d005" (DV weights) or "v005" (household weights)
                             # Only used if USE_WEIGHTS = True
 DPI = 300                   # Resolution of output images (dots per inch)

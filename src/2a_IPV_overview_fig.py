@@ -97,11 +97,15 @@ USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
 DPI = 300                   # Resolution of output images (dots per inch)
 BG_ALPHA = 0.9              # Transparency of background map (0=invisible, 1=opaque)
 CMAP = "magma"              # Color map for prevalence (dark purple to yellow)
-CIRCLE_ALPHA = 0.25         # Transparency of cluster circles
+CIRCLE_ALPHA = 0.15         # Transparency of cluster circles
 
 # Circle size range (in points²)
 SIZE_MIN = 25.0             # Minimum marker area
 SIZE_MAX = 300.0            # Maximum marker area
+
+# Legend position for circle sizes
+# Options: "on_map", "outside", "none"
+LEGEND_POSITION = "outside"  # "on_map" = inside map (lower right), "outside" = outside map area, "none" = no legend
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -309,49 +313,71 @@ def create_map_visualization(plot_df, variable_name, variable_description,
         plt.FuncFormatter(lambda x, p: f'{x:.0%}')
     )
     
-    # Add size legend
-    min_n = plot_df["n_women"].min()
-    max_n = plot_df["n_women"].max()
-    legend_samples = [int(min_n), int((min_n + max_n) / 2), int(max_n)]
-    
-    # Get percentiles for size scaling (same as used for sizes calculation)
-    sizes_raw = pd.to_numeric(plot_df["n_women"], errors="coerce").fillna(0).astype(float)
-    p05 = float(np.nanpercentile(sizes_raw.to_numpy(), 5))
-    p95 = float(np.nanpercentile(sizes_raw.to_numpy(), 95))
-    if not np.isfinite(p05):
-        p05 = sizes_raw.min()
-    if not np.isfinite(p95):
-        p95 = sizes_raw.max()
-    if p95 <= p05:
-        p05, p95 = sizes_raw.min(), sizes_raw.max()
+    # Add size legend based on LEGEND_POSITION setting
+    legend_obj = None
+    if LEGEND_POSITION != "none":
+        min_n = plot_df["n_women"].min()
+        max_n = plot_df["n_women"].max()
+        legend_samples = [int(min_n), int((min_n + max_n) / 2), int(max_n)]
+        
+        # Get percentiles for size scaling (same as used for sizes calculation)
+        sizes_raw = pd.to_numeric(plot_df["n_women"], errors="coerce").fillna(0).astype(float)
+        p05 = float(np.nanpercentile(sizes_raw.to_numpy(), 5))
+        p95 = float(np.nanpercentile(sizes_raw.to_numpy(), 95))
+        if not np.isfinite(p05):
+            p05 = sizes_raw.min()
+        if not np.isfinite(p95):
+            p95 = sizes_raw.max()
         if p95 <= p05:
-            p05, p95 = 0.0, max(1.0, float(sizes_raw.max()))
-    
-    handles = []
-    for n in legend_samples:
-        nn = float(n)
-        nn = min(max(nn, p05), p95)
-        t = 0.0 if p95 <= p05 else (nn - p05) / (p95 - p05)
-        size_val = SIZE_MIN + (SIZE_MAX - SIZE_MIN) * t
-        handles.append(
-            plt.scatter([], [], s=size_val, color="gray", alpha=0.6,
-                        edgecolors="black", linewidths=0.5,
-                        label=f"{n} women")
-        )
-    
-    ax.legend(
-        handles=handles,
-        scatterpoints=1,
-        frameon=True,
-        labelspacing=1.5,
-        title="Number of Women\nInterviewed per Cluster",
-        loc="lower right",
-        fontsize=10,
-        title_fontsize=11
-    )
+            p05, p95 = sizes_raw.min(), sizes_raw.max()
+            if p95 <= p05:
+                p05, p95 = 0.0, max(1.0, float(sizes_raw.max()))
+        
+        handles = []
+        for n in legend_samples:
+            nn = float(n)
+            nn = min(max(nn, p05), p95)
+            t = 0.0 if p95 <= p05 else (nn - p05) / (p95 - p05)
+            size_val = SIZE_MIN + (SIZE_MAX - SIZE_MIN) * t
+            handles.append(
+                plt.scatter([], [], s=size_val, color="gray", alpha=0.6,
+                            edgecolors="black", linewidths=0.5,
+                            label=f"{n} women")
+            )
+        
+        if LEGEND_POSITION == "on_map":
+            # Legend inside the map (original behavior)
+            legend_obj = ax.legend(
+                handles=handles,
+                scatterpoints=1,
+                frameon=True,
+                labelspacing=1.5,
+                title="Number of Women\nInterviewed per Cluster",
+                loc="lower right",
+                fontsize=10,
+                title_fontsize=11
+            )
+        elif LEGEND_POSITION == "outside":
+            # Legend outside the map (positioned lower to avoid colorbar overlap)
+            legend_obj = ax.legend(
+                handles=handles,
+                scatterpoints=1,
+                frameon=True,
+                labelspacing=1.5,
+                title="Number of Women\nInterviewed per Cluster",
+                loc="lower left",
+                bbox_to_anchor=(1.15, 0.0),
+                fontsize=10,
+                title_fontsize=11
+            )
     
     # Save figure
-    plt.savefig(output_path, dpi=DPI, bbox_inches="tight")
+    if LEGEND_POSITION == "outside" and legend_obj is not None:
+        # Include legend in the saved area
+        plt.savefig(output_path, dpi=DPI, bbox_inches="tight", 
+                    bbox_extra_artists=[legend_obj])
+    else:
+        plt.savefig(output_path, dpi=DPI, bbox_inches="tight")
     plt.close()
     
     # Save CSV
@@ -566,6 +592,7 @@ def main():
     print(f"  → Smallest cluster: {min_n:.0f} women")
     print(f"  → Largest cluster: {max_n:.0f} women")
     print(f"  → Marker area range: {SIZE_MIN:.0f} to {SIZE_MAX:.0f} points²")
+    print(f"  → Legend position: {LEGEND_POSITION}")
 
     # Create maps for each variable
     output_files = []
@@ -617,6 +644,7 @@ def main():
     print(f"  → Weighting: {title_suffix}")
     print(f"  → Resolution: {DPI} DPI")
     print(f"  → Background map: {'Yes' if has_background else 'No'}")
+    print(f"  → Legend position: {LEGEND_POSITION}")
 
     print("\n✅ All visualizations created successfully!\n")
 
