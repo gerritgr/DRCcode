@@ -72,7 +72,7 @@ IPV_VARIABLE = "d111"  # Any IPV (D111: experienced any form of IPV)
 IPV_DESCRIPTION = "Any IPV (D111)"
 
 # WEIGHTING SETTINGS
-USE_WEIGHTS = False              # Use DHS sampling weights (recommended)
+USE_WEIGHTS = True              # Use DHS sampling weights (recommended)
 WEIGHT_VARIABLE = "d005"        # Weight variable: "d005" (DV weights) or "v005" (household weights)
 
 # CONFLICT DATA SETTINGS
@@ -658,6 +658,47 @@ def main():
     print(f"    with increasing distance from conflict")
     
     print("\n✅ Analysis complete!\n")
+    
+    # -------------------------------------------------------------------------
+    # DISTANCE-BASED PREVALENCE ANALYSIS
+    # -------------------------------------------------------------------------
+    print("\n" + "=" * 70)
+    print("DISTANCE-BASED PREVALENCE ANALYSIS (UNWEIGHTED)")
+    print("=" * 70)
+    
+    print(f"\nIPV prevalence by proximity to conflict:")
+    print(f"(Based on {len(dhs_valid):,} women with valid responses)\n")
+    
+    # Define distance thresholds (in km)
+    distance_thresholds = [10, 25, 50, 100]
+    
+    for threshold in distance_thresholds:
+        # Filter to women within this distance
+        within_distance = dhs_valid[dhs_valid["distance_to_conflict_km"] <= threshold]
+        
+        if len(within_distance) > 0:
+            # Calculate prevalence (fraction answering yes)
+            n_total = len(within_distance)
+            n_yes = within_distance[ipv_var].sum()
+            prevalence = n_yes / n_total
+            
+            print(f"  Distance < {threshold:3d} km:")
+            print(f"    → {n_total:5,} women ({n_total/len(dhs_valid)*100:5.1f}% of sample)")
+            print(f"    → {n_yes:5,} reported IPV")
+            print(f"    → Prevalence: {prevalence*100:5.1f}%")
+            print()
+        else:
+            print(f"  Distance < {threshold:3d} km:")
+            print(f"    → No women within this distance")
+            print()
+    
+    # Overall prevalence for comparison
+    overall_prevalence = dhs_valid[ipv_var].mean()
+    print(f"  Overall prevalence (all distances):")
+    print(f"    → {len(dhs_valid):5,} women")
+    print(f"    → {int(dhs_valid[ipv_var].sum()):5,} reported IPV")
+    print(f"    → Prevalence: {overall_prevalence*100:5.1f}%")
+    print()
 
 
 # =============================================================================
