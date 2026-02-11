@@ -85,7 +85,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 LINE_WIDTH = 80                 # Width of separator lines
 SECTION_CHAR = '='              # Character for major section separators
 SUBSECTION_CHAR = '-'           # Character for minor section separators
-CATEGORICAL_THRESHOLD = 15      # Variables with ≤10 unique values are categorical
+CATEGORICAL_THRESHOLD = 20      # Variables with ≤10 unique values are categorical
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -427,7 +427,8 @@ def format_categorical_variable(series, var_name, var_description=None):
     for i, (category, count) in enumerate(value_counts.items()):
         if i >= max_display:
             # Show "Other" for remaining categories
-            other_count = value_counts[max_display:].sum()
+            # Use .iloc[] for positional slicing (not label-based slicing)
+            other_count = value_counts.iloc[max_display:].sum()
             if other_count > 0:
                 pct_other = other_count / n_total * 100
                 output.append(f"  [Other]:      {other_count:8,}  ({pct_other:6.2f}%)")
