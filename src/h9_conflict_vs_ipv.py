@@ -64,10 +64,9 @@ from scipy.stats import bootstrap
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-
 # VARIABLES TO VISUALIZE
 # Define which DHS variables to create curves for
-VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108", "D117A", "D130A", "V763A"]
+VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108", "D105H", "D105A", "D117A", "V763A"]
 
 # VARIABLE DESCRIPTIONS
 # Maps variable codes to their full descriptions for figure titles
@@ -76,8 +75,9 @@ VARIABLE_DESCRIPTIONS = {
     "D104": "Emotional IPV",
     "D106": "Physical IPV",
     "D108": "Sexual IPV",
+    "D105H": "Forced sex by partner (last 12m)",
+    "D105A": "Pushed/shook/thrown by partner (last 12m)",
     "D117A": "Hit by non-partner (last 12m)",
-    "D130A": "Previous partner IPV",
     "V763A": "STI in the last 12 month",
 }
 
@@ -86,14 +86,23 @@ VARIABLE_DESCRIPTIONS = {
 # Format: {variable: {"yes": [list of values], "no": [list of values]}}
 # All other values are ignored (treated as missing)
 VARIABLE_CODING = {
-    "D111": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D104": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D106": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D108": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D117A": {"yes": [1, 2], "no": [0, 3, 4, 5, 6]},  # Frequency: 1-2=Yes (often/sometimes), others=No
-    "D130A": {"yes": [1], "no": [0]},          # Standard binary: 0=No, 1=Yes
-    "V763A": {"yes": [1], "no": [0]},          # Standard binary: 0=No, 1=Yes
+    "D111": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
+    "D104": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
+    "D106": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
+    "D108": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
+
+    # DHS timing structure:
+    # 0 = Never
+    # 1 = Often (last 12 months)
+    # 2 = Sometimes (last 12 months)
+    # 3 = Yes, but not in last 12 months
+    "D105H": {"yes": [1, 2], "no": [0, 3]},
+    "D105A": {"yes": [1, 2], "no": [0, 3]},
+
+    "D117A": {"yes": [1, 2], "no": [0, 3, 4, 5, 6]},  # Frequency: 1-2=Yes (often/sometimes)
+    "V763A": {"yes": [1], "no": [0]},                  # Standard binary: 0=No, 1=Yes
 }
+
 
 # RANDOM SEED (for deterministic results)
 RANDOM_SEED = 42
