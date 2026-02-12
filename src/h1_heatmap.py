@@ -27,19 +27,19 @@ INPUTS:
 OUTPUTS:
 --------
 For each variable in VARIABLES_TO_PLOT:
-- 3a_{variable}_heatmap.csv (aggregated data with wealth × education cells)
-- 3a_{variable}_heatmap.png (heatmap visualization - PNG format)
-- 3a_{variable}_heatmap.pdf (heatmap visualization - PDF format)
+- h1_{variable}_heatmap.csv (aggregated data with wealth × education cells)
+- h1_{variable}_heatmap.png (heatmap visualization - PNG format)
+- h1_{variable}_heatmap.pdf (heatmap visualization - PDF format)
 
 All outputs are saved in the output/ directory (same level as src/).
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/3a_heatmap.py
+    python src/h1_heatmap.py
 
 Or from the src directory:
-    python 3a_heatmap.py
+    python h1_heatmap.py
 
 REQUIREMENTS:
 -------------
@@ -64,6 +64,15 @@ import seaborn as sns
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
+# COLOR SCHEME OPTIONS
+# Choose one of the following color schemes for the heatmap:
+# 1. "RdYlGn_r" - Red-Yellow-Green (reversed: high=red, low=green) - RECOMMENDED
+# 2. "RdBu_r"   - Red-Blue (reversed: high=red, low=blue)
+# 3. "coolwarm" - Cool-Warm (high=red, low=blue)
+# 4. "viridis"  - Viridis (perceptually uniform, colorblind-friendly)
+# 5. "plasma"   - Plasma (perceptually uniform, high contrast)
+COLOR_SCHEME = "rocket"
 
 # VARIABLES TO VISUALIZE
 # Define which DHS variables to create heatmaps for
@@ -121,7 +130,6 @@ WEIGHT_VARIABLE = "d005"    # Weight variable to use: "d005" (DV weights) or "v0
 MIN_SAMPLES_PER_CELL = 20   # Minimum sample size to display a cell (default: 20)
                             # Cells with fewer samples will be hidden (shown as blank)
 DPI = 300                   # Resolution of output images (dots per inch)
-CMAP = "RdYlGn_r"          # Color map (Red-Yellow-Green reversed: high=red, low=green)
 FIGSIZE = (10, 8)          # Figure size in inches
 
 # Color scale range (prevalence bounds for heatmap)
@@ -513,9 +521,9 @@ def main():
         print(f"\n  [{i}/{len(all_agg_data)}] Creating heatmap for {var} ({var_desc})...")
         
         # Generate output filenames for this variable
-        output_csv = OUTPUT_DIR / f"3a_{var.lower()}_heatmap.csv"
-        output_png = OUTPUT_DIR / f"3a_{var.lower()}_heatmap.png"
-        output_pdf = OUTPUT_DIR / f"3a_{var.lower()}_heatmap.pdf"
+        output_csv = OUTPUT_DIR / f"h1_{var.lower()}_heatmap.csv"
+        output_png = OUTPUT_DIR / f"h1_{var.lower()}_heatmap.png"
+        output_pdf = OUTPUT_DIR / f"h1_{var.lower()}_heatmap.pdf"
         
         # Save aggregated data to CSV
         agg_output = agg_data.copy()
@@ -545,7 +553,7 @@ def main():
             output_pdf=output_pdf,
             vmin=VMIN,
             vmax=VMAX,
-            cmap=CMAP,
+            cmap=COLOR_SCHEME,
             figsize=FIGSIZE,
             min_samples=MIN_SAMPLES_PER_CELL
         )
@@ -589,7 +597,7 @@ def main():
     else:
         print(f"  → Weighting: None (unweighted)")
     print(f"  → Minimum samples per cell: {MIN_SAMPLES_PER_CELL}")
-    print(f"  → Colormap: {CMAP}")
+    print(f"  → Color scheme: {COLOR_SCHEME}")
     print(f"  → Color scale: {VMIN:.0%} to {VMAX:.0%} (fixed across all heatmaps)")
 
     # Print interpretation guidance

@@ -23,18 +23,18 @@ INPUTS:
 OUTPUTS:
 --------
 For each variable in VARIABLES_TO_PLOT:
-- 2a_{variable_name}_map.jpg (map of prevalence)
-- 2a_{variable_name}_map.csv (underlying data)
+- h2_{variable_name}_map.jpg (map of prevalence)
+- h2_{variable_name}_map.csv (underlying data)
 
 All outputs are saved in the output/ directory (same level as src/).
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/2a_vis_dhs_maps_generalized.py
+    python src/h2_vis_dhs_maps.py
 
 Or from the src directory:
-    python 2a_vis_dhs_maps_generalized.py
+    python h2_vis_dhs_maps.py
 
 REQUIREMENTS:
 -------------
@@ -55,10 +55,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image
+import seaborn as sns
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
+# COLOR SCHEME OPTIONS
+# Choose one of the following color schemes for the map:
+# 1. "rocket"   - Rocket (dark blue to orange/red) - RECOMMENDED
+# 2. "magma"    - Magma (dark purple to yellow)
+# 3. "viridis"  - Viridis (perceptually uniform, colorblind-friendly)
+# 4. "plasma"   - Plasma (perceptually uniform, high contrast)
+# 5. "RdYlGn_r" - Red-Yellow-Green (reversed: high=red, low=green)
+COLOR_SCHEME = "rocket"
 
 # VARIABLES TO VISUALIZE
 # Define which DHS variables to create maps for
@@ -96,8 +106,7 @@ EXTENT = [11.893979235367297, 31.616531541802978, -13.981788316118982, 5.8118259
 USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
 DPI = 300                   # Resolution of output images (dots per inch)
 BG_ALPHA = 0.9              # Transparency of background map (0=invisible, 1=opaque)
-CMAP = "magma"              # Color map for prevalence (dark purple to yellow)
-CIRCLE_ALPHA = 0.15         # Transparency of cluster circles
+CIRCLE_ALPHA = 0.2         # Transparency of cluster circles
 
 # Circle size range (in points²)
 SIZE_MIN = 25.0             # Minimum marker area
@@ -280,7 +289,7 @@ def create_map_visualization(plot_df, variable_name, variable_description,
         df_plot["LATNUM"],
         c=df_plot[fraction_col],
         s=sizes.loc[df_plot.index],
-        cmap=CMAP,
+        cmap=COLOR_SCHEME,
         vmin=vmin,
         vmax=vmax,
         alpha=CIRCLE_ALPHA,
@@ -563,9 +572,9 @@ def main():
     if vmax <= 0:
         vmax = 1.0
 
-    print(f"\nColor scale (magma colormap):")
-    print(f"  → Dark purple = 0% prevalence")
-    print(f"  → Bright yellow = {vmax:.1%} prevalence (max across all variables)")
+    print(f"\nColor scale ({COLOR_SCHEME} colormap):")
+    print(f"  → Low values = 0% prevalence")
+    print(f"  → High values = {vmax:.1%} prevalence (max across all variables)")
 
     # Scale marker sizes using percentile clipping
     sizes = pd.to_numeric(plot_df["n_women"], errors="coerce").fillna(0).astype(float)
@@ -601,8 +610,8 @@ def main():
         var_desc = VARIABLE_DESCRIPTIONS.get(var, var)
         print(f"\n[{i}/{len(VARIABLES_TO_PLOT)}] Creating map for {var} ({var_desc})...")
         
-        output_jpg = OUTPUT_DIR / f"2a_{var}_map.jpg"
-        output_csv = OUTPUT_DIR / f"2a_{var}_map.csv"
+        output_jpg = OUTPUT_DIR / f"h2_{var}_map.jpg"
+        output_csv = OUTPUT_DIR / f"h2_{var}_map.csv"
         
         n_plotted = create_map_visualization(
             plot_df=plot_df,
@@ -643,6 +652,7 @@ def main():
     print(f"  → Variables: {', '.join(VARIABLES_TO_PLOT)}")
     print(f"  → Weighting: {title_suffix}")
     print(f"  → Resolution: {DPI} DPI")
+    print(f"  → Color scheme: {COLOR_SCHEME}")
     print(f"  → Background map: {'Yes' if has_background else 'No'}")
     print(f"  → Legend position: {LEGEND_POSITION}")
 
