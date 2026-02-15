@@ -97,13 +97,13 @@ DRC_COUNTRY_NAME = "Democratic Republic of Congo"
 # VISUALIZATION SETTINGS
 
 # Point size scaling for casualties
-MIN_POINT_SIZE = 20           # Minimum marker size (for 0-1 casualties)
+MIN_POINT_SIZE = 10           # Minimum marker size (for 0-1 casualties)
 MAX_POINT_SIZE = 100         # Maximum marker size (for high casualties)
 SIZE_SCALE_POWER = 0.5       # Power for size scaling (0.5 = square root, 1.0 = linear)
 
 # Point appearance
 POINT_ALPHA = 0.15           # Transparency of points (0-1)
-POINT_EDGE_WIDTH = 0.5       # Width of point edges
+POINT_EDGE_WIDTH = 0.1       # Width of point edges
 
 # Legend settings
 # Options: "none", "on_map", "outside"
@@ -121,8 +121,8 @@ COLOR_DRC = sns.color_palette("muted")[0]      # Blue for DRC
 COLOR_NON_DRC = sns.color_palette("muted")[1]  # Orange for non-DRC
 
 # Create color maps: gray (older) to blue/orange (more recent)
-CMAP_DRC = sns.light_palette(COLOR_DRC, as_cmap=True)
-CMAP_NON_DRC = sns.light_palette(COLOR_NON_DRC, as_cmap=True)
+CMAP_DRC = sns.dark_palette(COLOR_DRC, as_cmap=True)
+CMAP_NON_DRC = sns.dark_palette(COLOR_NON_DRC, as_cmap=True)
 
 # =============================================================================
 # HELPER FUNCTIONS
