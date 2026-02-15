@@ -44,11 +44,12 @@ REQUIREMENTS:
 - pandas (data manipulation)
 - numpy (numerical operations)
 - matplotlib (plotting)
+- seaborn (color palettes)
 - scipy (smoothing and statistics)
 - openpyxl (reading Excel files)
 
 Install with:
-    pip install pandas numpy matplotlib scipy openpyxl
+    pip install pandas numpy matplotlib seaborn scipy openpyxl
 
 ================================================================================
 """
@@ -58,15 +59,23 @@ import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from scipy.interpolate import UnivariateSpline
 from scipy.stats import bootstrap
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
+
+# COLOR SCHEME
+# Using seaborn muted palette for consistent, professional colors
+COLOR_NO = sns.color_palette("muted")[0]   # Blue for "No" responses
+COLOR_YES = sns.color_palette("muted")[3]  # Red for "Yes" responses  
+COLOR_LINE = sns.color_palette("muted")[1] # Orange for interpolated curve
+
 # VARIABLES TO VISUALIZE
 # Define which DHS variables to create curves for
-VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108", "D105H", "D105A", "D117A", "V763A"]
+VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108", "D117A", "D130A", "V763A"]
 
 # VARIABLE DESCRIPTIONS
 # Maps variable codes to their full descriptions for figure titles
@@ -75,9 +84,8 @@ VARIABLE_DESCRIPTIONS = {
     "D104": "Emotional IPV",
     "D106": "Physical IPV",
     "D108": "Sexual IPV",
-    "D105H": "Forced sex by partner (last 12m)",
-    "D105A": "Pushed/shook/thrown by partner (last 12m)",
     "D117A": "Hit by non-partner (last 12m)",
+    "D130A": "Previous partner IPV",
     "V763A": "STI in the last 12 month",
 }
 
@@ -86,23 +94,14 @@ VARIABLE_DESCRIPTIONS = {
 # Format: {variable: {"yes": [list of values], "no": [list of values]}}
 # All other values are ignored (treated as missing)
 VARIABLE_CODING = {
-    "D111": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
-    "D104": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
-    "D106": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
-    "D108": {"yes": [1], "no": [0]},                 # Standard binary: 0=No, 1=Yes
-
-    # DHS timing structure:
-    # 0 = Never
-    # 1 = Often (last 12 months)
-    # 2 = Sometimes (last 12 months)
-    # 3 = Yes, but not in last 12 months
-    "D105H": {"yes": [1, 2], "no": [0, 3]},
-    "D105A": {"yes": [1, 2], "no": [0, 3]},
-
-    "D117A": {"yes": [1, 2], "no": [0, 3, 4, 5, 6]},  # Frequency: 1-2=Yes (often/sometimes)
-    "V763A": {"yes": [1], "no": [0]},                  # Standard binary: 0=No, 1=Yes
+    "D111": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
+    "D104": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
+    "D106": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
+    "D108": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
+    "D117A": {"yes": [1, 2], "no": [0, 3, 4, 5, 6]},  # Frequency: 1-2=Yes (often/sometimes), others=No
+    "D130A": {"yes": [1], "no": [0]},          # Standard binary: 0=No, 1=Yes
+    "V763A": {"yes": [1], "no": [0]},          # Standard binary: 0=No, 1=Yes
 }
-
 
 # RANDOM SEED (for deterministic results)
 RANDOM_SEED = 42
@@ -113,7 +112,7 @@ X_AXIS_THRESHOLD_KM = 100      # Only show distances up to this value (default: 
 # CURVE SMOOTHING SETTING
 # Higher values = smoother curve, lower values = follows data more closely
 # Recommended range: 0.001 to 0.1
-CURVE_SMOOTHNESS = 0.001        # Default: 0.01 (moderate smoothing)
+CURVE_SMOOTHNESS = 0.01        # Default: 0.01 (moderate smoothing)
 
 # TIME RANGE FOR CONFLICT DATA
 # Define which conflict events to include based on their date
@@ -674,11 +673,11 @@ def main():
         
         ax.scatter(x_data[mask_no], y_data[mask_no], 
                   s=MARKER_SIZE, alpha=MARKER_ALPHA, 
-                  c='steelblue', label=f'No {var_desc} (0)', zorder=2)
+                  c=COLOR_NO, label=f'No {var_desc} (0)', zorder=2)
         
         ax.scatter(x_data[mask_yes], y_data[mask_yes], 
                   s=MARKER_SIZE, alpha=MARKER_ALPHA, 
-                  c='crimson', label=f'Yes {var_desc} (1)', zorder=2)
+                  c=COLOR_YES, label=f'Yes {var_desc} (1)', zorder=2)
         
         # Confidence interval band
         ax.fill_between(x_eval, lower_ci, upper_ci, 
@@ -687,7 +686,7 @@ def main():
         
         # Smooth curve
         ax.plot(x_eval, y_fit, 
-               linewidth=LINE_WIDTH, color='black', 
+               linewidth=LINE_WIDTH, color=COLOR_LINE, 
                label='Smooth curve (weighted spline)', zorder=4)
         
         # Formatting
