@@ -27,10 +27,10 @@ INPUTS:
 
 OUTPUTS:
 --------
-For each variable in VARIABLES_TO_PLOT:
-- h9_{variable}_curve.csv (individual-level data: woman_id, distance_km, ipv_response)
-- h9_{variable}_curve.jpg (visualization - JPG format, 300 DPI)
-- h9_{variable}_curve.pdf (visualization - PDF format, vector)
+For each indicator in TARGET_INDICATORS:
+- h9_{indicator}_curve.csv (individual-level data: woman_id, distance_km, ipv_response)
+- h9_{indicator}_curve.jpg (visualization - JPG format, 300 DPI)
+- h9_{indicator}_curve.pdf (visualization - PDF format, vector)
 
 All outputs are saved in the output/ directory (same level as src/).
 
@@ -73,35 +73,83 @@ COLOR_NO = sns.color_palette("muted")[0]   # Blue for "No" responses
 COLOR_YES = sns.color_palette("muted")[3]  # Red for "Yes" responses  
 COLOR_LINE = sns.color_palette("muted")[1] # Orange for interpolated curve
 
-# VARIABLES TO VISUALIZE
-# Define which DHS variables to create curves for
-VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108", "D117A", "D130A", "V763A"]
-
-# VARIABLE DESCRIPTIONS
-# Maps variable codes to their full descriptions for figure titles
-VARIABLE_DESCRIPTIONS = {
-    "D111": "Any IPV",
-    "D104": "Emotional IPV",
-    "D106": "Physical IPV",
-    "D108": "Sexual IPV",
-    "D117A": "Hit by non-partner (last 12m)",
-    "D130A": "Previous partner IPV",
-    "V763A": "STI in the last 12 month",
-}
-
-# VARIABLE CODING
-# Defines which response values count as "Yes" (1) and "No" (0) for each variable
-# Format: {variable: {"yes": [list of values], "no": [list of values]}}
-# All other values are ignored (treated as missing)
-VARIABLE_CODING = {
-    "D111": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D104": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D106": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D108": {"yes": [1], "no": [0]},           # Standard binary: 0=No, 1=Yes
-    "D117A": {"yes": [1, 2], "no": [0, 3, 4, 5, 6]},  # Frequency: 1-2=Yes (often/sometimes), others=No
-    "D130A": {"yes": [1], "no": [0]},          # Standard binary: 0=No, 1=Yes
-    "V763A": {"yes": [1], "no": [0]},          # Standard binary: 0=No, 1=Yes
-}
+# INDICATORS TO VISUALIZE
+# Focused on violence against women/girls in the last 12 months.
+# Source for definitions/coding: DATA/DHS/variable_names_map.txt/.csv
+TARGET_INDICATORS = [
+    {
+        "id": "IPV12M_ANY",
+        "description": "Any IPV by husband/partner (last 12m, emotional/physical/sexual)",
+        "type": "any_of",
+        "columns": ["D103A", "D103B", "D103C", "D105A", "D105B", "D105C", "D105D", "D105E", "D105F", "D105J", "D105H", "D105I", "D105K"],
+        "yes": [1, 2],
+        "no": [0, 3],
+    },
+    {
+        "id": "IPV12M_EMOTIONAL",
+        "description": "Emotional IPV by husband/partner (last 12m)",
+        "type": "any_of",
+        "columns": ["D103A", "D103B", "D103C"],
+        "yes": [1, 2],
+        "no": [0, 3],
+    },
+    {
+        "id": "IPV12M_PHYSICAL_LESS_SEV",
+        "description": "Less severe physical IPV by husband/partner (last 12m)",
+        "type": "any_of",
+        "columns": ["D105A", "D105B", "D105C", "D105J"],
+        "yes": [1, 2],
+        "no": [0, 3],
+    },
+    {
+        "id": "IPV12M_PHYSICAL_SEVERE",
+        "description": "Severe physical IPV by husband/partner (last 12m)",
+        "type": "any_of",
+        "columns": ["D105D", "D105E", "D105F"],
+        "yes": [1, 2],
+        "no": [0, 3],
+    },
+    {
+        "id": "IPV12M_SEXUAL",
+        "description": "Sexual IPV by husband/partner (last 12m)",
+        "type": "any_of",
+        "columns": ["D105H", "D105I", "D105K"],
+        "yes": [1, 2],
+        "no": [0, 3],
+    },
+    {
+        "id": "NONPARTNER_PHYSICAL_12M",
+        "description": "Hit by someone other than husband/partner (last 12m)",
+        "type": "single",
+        "column": "D117A",
+        "yes": [1, 2],
+        "no": [0],
+    },
+    {
+        "id": "PREV_PARTNER_PHYSICAL_12M",
+        "description": "Physical violence by previous partner (0-11 months ago)",
+        "type": "single",
+        "column": "D130A",
+        "yes": [1],
+        "no": [0, 2, 6],
+    },
+    {
+        "id": "PREV_PARTNER_SEXUAL_12M",
+        "description": "Sexual violence by previous partner (0-11 months ago)",
+        "type": "single",
+        "column": "D130B",
+        "yes": [1],
+        "no": [0, 2, 6],
+    },
+    {
+        "id": "PREV_PARTNER_EMOTIONAL_12M",
+        "description": "Emotional violence by previous partner (0-11 months ago)",
+        "type": "single",
+        "column": "D130C",
+        "yes": [1],
+        "no": [0, 2, 6],
+    },
+]
 
 # RANDOM SEED (for deterministic results)
 RANDOM_SEED = 42
@@ -346,6 +394,82 @@ def bootstrap_confidence_interval(x, y, weights, s=0.01, k=3, x_eval=None,
     return lower_bound, upper_bound
 
 
+def recode_series_with_coding(series, yes_values, no_values):
+    """
+    Recode a DHS series into binary outcome based on explicit code lists.
+    
+    Parameters:
+    -----------
+    series : pd.Series
+        Raw DHS responses
+    yes_values : list
+        Codes interpreted as Yes (1)
+    no_values : list
+        Codes interpreted as No (0)
+    
+    Returns:
+    --------
+    pd.Series : float series with values {1.0, 0.0, NaN}
+    """
+    series_num = pd.to_numeric(series, errors="coerce")
+    valid_values = list(yes_values) + list(no_values)
+    
+    recoded = pd.Series(np.nan, index=series.index, dtype=float)
+    valid_mask = series_num.isin(valid_values)
+    recoded.loc[valid_mask] = series_num.loc[valid_mask].isin(yes_values).astype(float)
+    return recoded
+
+
+def build_indicator_binary(df, indicator_spec, lower_lookup):
+    """
+    Build one binary indicator from TARGET_INDICATORS specification.
+    
+    Supports:
+    - type="single": one DHS variable
+    - type="any_of": composite, Yes if any component is Yes
+    
+    Returns:
+    --------
+    tuple : (indicator_series, source_columns_used)
+    """
+    indicator_type = indicator_spec["type"]
+    yes_values = indicator_spec["yes"]
+    no_values = indicator_spec["no"]
+    
+    if indicator_type == "single":
+        src_upper = indicator_spec["column"]
+        src_key = src_upper.lower()
+        if src_key not in lower_lookup:
+            raise ValueError(f"Missing required column: {src_upper}")
+        src_col = lower_lookup[src_key]
+        indicator = recode_series_with_coding(df[src_col], yes_values, no_values)
+        return indicator, [src_col]
+    
+    if indicator_type == "any_of":
+        source_upper = indicator_spec["columns"]
+        missing = [col for col in source_upper if col.lower() not in lower_lookup]
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+        
+        source_cols = [lower_lookup[col.lower()] for col in source_upper]
+        components = [
+            recode_series_with_coding(df[col], yes_values, no_values)
+            for col in source_cols
+        ]
+        comp_matrix = np.column_stack([s.to_numpy() for s in components])
+        
+        any_yes = np.any(comp_matrix == 1.0, axis=1)
+        any_valid = np.any(~np.isnan(comp_matrix), axis=1)
+        
+        indicator = np.full(len(df), np.nan, dtype=float)
+        indicator[any_yes] = 1.0
+        indicator[~any_yes & any_valid] = 0.0
+        
+        return pd.Series(indicator, index=df.index, dtype=float), source_cols
+    
+    raise ValueError(f"Unsupported indicator type: {indicator_type}")
+
+
 # =============================================================================
 # MAIN PROCESSING
 # =============================================================================
@@ -363,7 +487,8 @@ def main():
     print("=" * 70)
     print(f"\nHypothesis H9: Recent exposure to armed conflict is positively")
     print(f"               associated with IPV prevalence")
-    print(f"\nVariables to analyze: {', '.join(VARIABLES_TO_PLOT)}")
+    configured_indicators = [spec["id"] for spec in TARGET_INDICATORS]
+    print(f"\nIndicators to analyze: {', '.join(configured_indicators)}")
     print(f"Random seed: {RANDOM_SEED} (for reproducibility)")
     
     # -------------------------------------------------------------------------
@@ -459,7 +584,7 @@ def main():
     print("-" * 70)
     
     print(f"\nReading DHS data...")
-    dhs = pd.read_csv(INPUT_DHS_CSV)
+    dhs = pd.read_csv(INPUT_DHS_CSV, low_memory=False)
     print(f"  → Loaded {len(dhs):,} women's records")
     
     # GPS columns in DHS data - try both possible naming conventions (lowercase and uppercase)
@@ -487,26 +612,48 @@ def main():
     
     print(f"  → Found GPS columns: {lat_col}, {lon_col}")
     
-    # Check all IPV variables exist
-    missing_vars = []
-    for var in VARIABLES_TO_PLOT:
-        if var.lower() not in dhs.columns:
-            missing_vars.append(var)
+    # Build lowercase lookup for robust column matching
+    dhs_lower_lookup = {col.lower(): col for col in dhs.columns}
     
-    if missing_vars:
-        print(f"ERROR: Variables not found in DHS columns: {missing_vars}")
-        print(f"Available columns: {list(dhs.columns)[:50]}...")
+    # Check all required source columns for indicators exist
+    required_source_columns = set()
+    for spec in TARGET_INDICATORS:
+        if spec["type"] == "single":
+            required_source_columns.add(spec["column"].lower())
+        elif spec["type"] == "any_of":
+            required_source_columns.update(col.lower() for col in spec["columns"])
+    
+    missing_source_columns = sorted([
+        col for col in required_source_columns
+        if col not in dhs_lower_lookup
+    ])
+    if missing_source_columns:
+        print(f"ERROR: Missing required indicator source columns: {missing_source_columns}")
+        print(f"Available columns: {list(dhs.columns)[:60]}...")
         sys.exit(1)
     
-    # Check if weight variable exists (if weighting is enabled)
+    # Check and resolve weight column (if weighting is enabled)
     if USE_WEIGHTS:
-        weight_var = WEIGHT_VARIABLE.lower()
-        if weight_var not in dhs.columns:
-            print(f"ERROR: Weight variable '{weight_var}' not found")
-            print(f"Available columns: {list(dhs.columns)[:20]}...")
+        weight_candidates = [
+            WEIGHT_VARIABLE,
+            WEIGHT_VARIABLE.lower(),
+            WEIGHT_VARIABLE.upper(),
+            "d005", "D005", "v005", "V005",
+        ]
+        weight_col = None
+        for candidate in weight_candidates:
+            if candidate in dhs.columns:
+                weight_col = candidate
+                break
+        if weight_col is None:
+            print(f"ERROR: Could not find weight column from candidates: {weight_candidates}")
+            print(f"Available columns: {list(dhs.columns)[:30]}...")
             sys.exit(1)
+        print(f"  → Using weight column: {weight_col}")
+    else:
+        weight_col = None
     
-    print(f"  → All required variables found")
+    print(f"  → All required indicator source columns found")
     
     # -------------------------------------------------------------------------
     # STEP 4: COMPUTE DISTANCE TO NEAREST CONFLICT FOR ALL WOMEN
@@ -543,83 +690,71 @@ def main():
         print(f"  → Filtered to distances ≤ {MAX_CONFLICT_DISTANCE_KM} km: {n_after:,} women ({n_after/n_before*100:.1f}%)")
     
     # -------------------------------------------------------------------------
-    # STEP 5: PROCESS EACH VARIABLE
+    # STEP 5: PROCESS EACH INDICATOR
     # -------------------------------------------------------------------------
-    print("\n[STEP 5/8] Processing variables...")
+    print("\n[STEP 5/8] Processing indicators...")
     print("-" * 70)
     
     output_files = []
     
-    for var_idx, var in enumerate(VARIABLES_TO_PLOT, 1):
-        var_lower = var.lower()
-        var_desc = VARIABLE_DESCRIPTIONS.get(var, var)
+    for indicator_idx, spec in enumerate(TARGET_INDICATORS, 1):
+        indicator_id = spec["id"]
+        indicator_slug = indicator_id.lower()
+        indicator_desc = spec["description"]
         
         print(f"\n{'='*70}")
-        print(f"[{var_idx}/{len(VARIABLES_TO_PLOT)}] Processing {var} ({var_desc})")
+        print(f"[{indicator_idx}/{len(TARGET_INDICATORS)}] Processing {indicator_id}")
+        print(f"Description: {indicator_desc}")
         print(f"{'='*70}")
         
-        # Generate output paths for this variable
-        OUTPUT_CSV = OUTPUT_DIR / f"h9_{var_lower}_curve.csv"
-        OUTPUT_JPG = OUTPUT_DIR / f"h9_{var_lower}_curve.jpg"
-        OUTPUT_PDF = OUTPUT_DIR / f"h9_{var_lower}_curve.pdf"
+        # Generate output paths for this indicator
+        OUTPUT_CSV = OUTPUT_DIR / f"h9_{indicator_slug}_curve.csv"
+        OUTPUT_JPG = OUTPUT_DIR / f"h9_{indicator_slug}_curve.jpg"
+        OUTPUT_PDF = OUTPUT_DIR / f"h9_{indicator_slug}_curve.pdf"
         
-        # Filter to valid responses for this variable
-        print(f"\nFiltering to valid {var} responses...")
-        
-        # Get coding rules for this variable
-        if var.upper() in VARIABLE_CODING:
-            coding = VARIABLE_CODING[var.upper()]
-            yes_values = coding["yes"]
-            no_values = coding["no"]
-            
-            # Convert to numeric
-            dhs_with_gps[var_lower] = pd.to_numeric(dhs_with_gps[var_lower], errors='coerce')
-            
-            # Filter to rows with valid responses (either yes or no values)
-            valid_values = yes_values + no_values
-            dhs_valid = dhs_with_gps[
-                dhs_with_gps[var_lower].notna() &
-                dhs_with_gps[var_lower].isin(valid_values)
-            ].copy()
-            
-            # Recode to binary: 1 if in yes_values, 0 if in no_values
-            dhs_valid[var_lower] = dhs_valid[var_lower].isin(yes_values).astype(int)
-            
-            print(f"  → Recoded {var}: {yes_values} → Yes (1), {no_values} → No (0)")
-            
-        else:
-            # Fallback: assume standard binary (0 or 1)
-            print(f"  ⚠ No coding rules found for {var}, using standard binary (0/1)")
-            dhs_valid = dhs_with_gps[
-                dhs_with_gps[var_lower].notna() &
-                dhs_with_gps[var_lower].isin([0, 1])
-            ].copy()
-        
-        if len(dhs_valid) == 0:
-            print(f"  ⚠ No valid data for {var}, skipping...")
+        # Build binary indicator from source column(s)
+        print(f"\nBuilding binary indicator...")
+        try:
+            indicator_series, source_cols = build_indicator_binary(dhs_with_gps, spec, dhs_lower_lookup)
+        except ValueError as err:
+            print(f"  ⚠ Skipping {indicator_id}: {err}")
             continue
         
-        print(f"  → {len(dhs_valid):,} women with valid {var.upper()} response")
-        print(f"  → IPV prevalence: {dhs_valid[var_lower].mean()*100:.1f}%")
+        dhs_valid = dhs_with_gps.copy()
+        dhs_valid["indicator_binary"] = indicator_series
+        dhs_valid = dhs_valid[dhs_valid["indicator_binary"].notna()].copy()
+        dhs_valid["indicator_binary"] = dhs_valid["indicator_binary"].astype(int)
+        
+        print(f"  → Source columns: {', '.join(source_cols)}")
+        print(f"  → Coding: {spec['yes']} → Yes (1), {spec['no']} → No (0), others ignored")
+        
+        if len(dhs_valid) == 0:
+            print(f"  ⚠ No valid data for {indicator_id}, skipping...")
+            continue
+        
+        print(f"  → {len(dhs_valid):,} women with valid {indicator_id} response")
+        print(f"  → Prevalence: {dhs_valid['indicator_binary'].mean()*100:.1f}%")
         
         # Prepare data for visualization
         print(f"\nPreparing data for visualization...")
         
         # Extract arrays for plotting
         x_data = dhs_valid["distance_to_conflict_km"].to_numpy()
-        y_data = dhs_valid[var_lower].to_numpy()
+        y_data = dhs_valid["indicator_binary"].to_numpy()
         
         # Prepare weights
         if USE_WEIGHTS:
-            weight_var = WEIGHT_VARIABLE.lower()
-            weights = pd.to_numeric(dhs_valid[weight_var], errors="coerce") / 1_000_000.0
+            weights = pd.to_numeric(dhs_valid[weight_col], errors="coerce") / 1_000_000.0
             weights = weights.fillna(1.0).to_numpy()
-            print(f"  → Using weighted analysis with {weight_var.upper()}")
+            print(f"  → Using weighted analysis with {weight_col}")
         else:
             weights = np.ones(len(dhs_valid))
             print(f"  → Using unweighted analysis (equal weights)")
         
         # Normalize weights to sum to 1 (for proper probability estimates)
+        if weights.sum() <= 0:
+            print(f"  ⚠ Invalid weights (sum <= 0) for {indicator_id}, skipping...")
+            continue
         weights = weights / weights.sum()
         
         print(f"  → Final sample size: {len(x_data):,} women")
@@ -654,9 +789,9 @@ def main():
         
         # Save raw data to CSV
         print(f"  → Saving raw data to CSV...")
-        output_data = dhs_valid[[lat_col, lon_col, var_lower, "distance_to_conflict_km"]].copy()
+        output_data = dhs_valid[[lat_col, lon_col, "indicator_binary", "distance_to_conflict_km"]].copy()
         output_data["woman_id"] = range(1, len(output_data) + 1)
-        output_data = output_data[["woman_id", "distance_to_conflict_km", var_lower]]
+        output_data = output_data[["woman_id", "distance_to_conflict_km", "indicator_binary"]]
         output_data.columns = ["woman_id", "distance_km", "ipv_response"]
         output_data.to_csv(OUTPUT_CSV, index=False)
         print(f"    ✓ Saved: {OUTPUT_CSV.name}")
@@ -673,11 +808,11 @@ def main():
         
         ax.scatter(x_data[mask_no], y_data[mask_no], 
                   s=MARKER_SIZE, alpha=MARKER_ALPHA, 
-                  c=COLOR_NO, label=f'No {var_desc} (0)', zorder=2)
+                  color=COLOR_NO, label=f'No {indicator_desc} (0)', zorder=2)
         
         ax.scatter(x_data[mask_yes], y_data[mask_yes], 
                   s=MARKER_SIZE, alpha=MARKER_ALPHA, 
-                  c=COLOR_YES, label=f'Yes {var_desc} (1)', zorder=2)
+                  color=COLOR_YES, label=f'Yes {indicator_desc} (1)', zorder=2)
         
         # Confidence interval band
         ax.fill_between(x_eval, lower_ci, upper_ci, 
@@ -698,10 +833,10 @@ def main():
         ax.set_yticklabels(Y_TICK_LABELS)
         
         # Title
-        title = f'{var_desc} ({var}) vs Distance to Nearest Conflict\n'
+        title = f'{indicator_desc} ({indicator_id}) vs Distance to Nearest Conflict\n'
         title += f'n={len(dhs_valid):,} women'
         if USE_WEIGHTS:
-            title += f' | Weighted by {WEIGHT_VARIABLE.upper()}'
+            title += f' | Weighted by {weight_col}'
         ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
         
         # Legend
@@ -721,7 +856,7 @@ def main():
         
         plt.close()
         
-        output_files.append((var, var_desc, OUTPUT_CSV, OUTPUT_JPG, OUTPUT_PDF, dhs_valid))
+        output_files.append((indicator_id, indicator_desc, OUTPUT_CSV, OUTPUT_JPG, OUTPUT_PDF, dhs_valid))
     
     # -------------------------------------------------------------------------
     # SUMMARY
@@ -747,7 +882,9 @@ def main():
         file_num += 1
     
     print(f"⚙️  ANALYSIS SETTINGS:")
-    print(f"  → Variables analyzed: {', '.join(VARIABLES_TO_PLOT)}")
+    processed_ids = [item[0] for item in output_files]
+    print(f"  → Indicators configured: {', '.join(configured_indicators)}")
+    print(f"  → Indicators processed: {', '.join(processed_ids) if processed_ids else 'none'}")
     print(f"  → X-axis threshold: {X_AXIS_THRESHOLD_KM} km")
     print(f"  → Curve smoothness: {CURVE_SMOOTHNESS}")
     if CONFLICT_DATE_MIN is not None or CONFLICT_DATE_MAX is not None:
