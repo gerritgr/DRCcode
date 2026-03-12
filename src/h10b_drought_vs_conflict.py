@@ -180,8 +180,8 @@ TARGET_INDICATORS = [
 # - DATE_MAX = None  -> no upper bound
 # Set both to None for no date filtering at all.
 # ---------------------------------------------------------------------------
-DATE_MIN = "2022-01-01"
-DATE_MAX = "2023-12-31"
+DATE_MIN = "2021-01-01"
+DATE_MAX = "2025-12-31"
 
 # ---------------------------------------------------------------------------
 # Column candidates in DHS file
@@ -216,6 +216,13 @@ DEGREE_TO_KM_APPROX = 111.32
 # Minimum women per drought class required to keep that class in plots/tables.
 MIN_WOMEN_PER_CLASS = 1
 
+# Class mode flag (requested)
+# - True  -> binary comparison only: class 0 vs class >=1 drought months
+# - False -> use full number-of-drought-month classes (0, 1, 2, 3, ...)
+#
+# Note: variable name intentionally follows user request spelling.
+binary_comparision = True
+
 # Bootstrap settings for class-level uncertainty intervals
 # These bootstrap intervals are used for error bars in the bar charts.
 N_BOOTSTRAP = 1000
@@ -244,6 +251,11 @@ Y_LABEL = "Fraction of 'Yes' responses"
 ERRORBAR_COLOR = "black"
 ERRORBAR_CAPSIZE = 4
 ERRORBAR_LINEWIDTH = 1.0
+
+# Labels used when binary_comparision=True
+BINARY_CLASS_LABEL_0 = "0 drought months"
+BINARY_CLASS_LABEL_1 = ">=1 drought month"
+BINARY_X_LABEL = "Drought exposure class (0 vs >=1 drought month)"
 
 # =============================================================================
 # INTERNAL CONSTANTS (no need to edit)
@@ -488,6 +500,47 @@ def assign_nearest_drought_class(dhs_df, drought_summary_df, lat_col, lon_col):
     return enriched
 
 
+def apply_drought_class_mode(df):
+    """
+    Apply drought class mode based on `binary_comparision` flag.
+
+    If binary_comparision is True:
+    - class 0 remains 0
+    - classes >=1 collapse to 1
+    - invalid/missing classes remain NaN
+    """
+    out = df.copy()
+    class_num = pd.to_numeric(out[DROUGHT_CLASS_COL], errors="coerce")
+
+    if binary_comparision:
+        collapsed = np.where(class_num >= 1, 1, np.where(class_num == 0, 0, np.nan))
+        out[DROUGHT_CLASS_COL] = pd.Series(collapsed, index=out.index, dtype=float)
+    else:
+        out[DROUGHT_CLASS_COL] = class_num
+
+    return out
+
+
+def drought_class_label_from_value(class_value):
+    """
+    Return human-readable class label for outputs/plots.
+    """
+    if pd.isna(class_value):
+        return np.nan
+
+    class_int = int(class_value)
+    if binary_comparision:
+        return BINARY_CLASS_LABEL_0 if class_int == 0 else BINARY_CLASS_LABEL_1
+    return str(class_int)
+
+
+def get_x_axis_label():
+    """
+    Return x-axis label depending on class mode.
+    """
+    return BINARY_X_LABEL if binary_comparision else X_LABEL
+
+
 def weighted_fraction_yes(y, w):
     """
     Compute weighted fraction of Yes responses for binary outcome y in {0,1}.
@@ -590,6 +643,7 @@ def compute_class_summary(df, binary_col, weight_col):
         rows.append(
             {
                 DROUGHT_CLASS_COL: int(drought_class),
+                "drought_class_label": drought_class_label_from_value(drought_class),
                 "n_total": n_total,
                 "n_yes": n_yes,
                 "n_no": n_no,
@@ -631,7 +685,15 @@ def create_bar_chart(summary_df, var_name, var_desc, output_jpg, output_pdf, use
     y_lower = summary_df[lower_col].to_numpy()
     y_upper = summary_df[upper_col].to_numpy()
     x_values = summary_df[DROUGHT_CLASS_COL].to_numpy()
+    class_labels = summary_df["drought_class_label"].astype(str).to_numpy()
     yerr = np.vstack([np.maximum(0.0, y_values - y_lower), np.maximum(0.0, y_upper - y_values)])
+
+    # Auto-scale y-axis to data (instead of always forcing 0..1).
+    # This keeps low-prevalence bars visible while retaining the same lower bound.
+    y_top_data = float(np.nanmax(np.concatenate([y_values, y_upper])))
+    if not np.isfinite(y_top_data):
+        y_top_data = Y_MAX
+    y_max_plot = min(Y_MAX, max(0.05, y_top_data * 1.2))
 
     fig, ax = plt.subplots(figsize=FIGSIZE)
 
@@ -652,22 +714,23 @@ def create_bar_chart(summary_df, var_name, var_desc, output_jpg, output_pdf, use
         bar_height = float(bar.get_height())
         ax.text(
             bar.get_x() + bar.get_width() / 2.0,
-            min(bar_height + 0.015, Y_MAX - 0.01),
+            min(bar_height + 0.015, y_max_plot - 0.01),
             f"n={int(n)}",
             ha="center",
             va="bottom",
             fontsize=8,
         )
 
-    ax.set_xlabel(X_LABEL, fontsize=12, fontweight="bold")
+    ax.set_xlabel(get_x_axis_label(), fontsize=12, fontweight="bold")
     ax.set_ylabel(Y_LABEL, fontsize=12, fontweight="bold")
-    ax.set_ylim(Y_MIN, Y_MAX)
+    ax.set_ylim(Y_MIN, y_max_plot)
     ax.grid(True, axis="y", alpha=GRID_ALPHA, linestyle="--", linewidth=0.5)
     ax.set_axisbelow(True)
 
-    # Use integer ticks to match drought classes clearly.
+    # Use class-aware ticks/labels.
     ax.set_xticks(x_values)
-    if len(x_values) > 12:
+    ax.set_xticklabels(class_labels)
+    if len(x_values) > 6:
         ax.tick_params(axis="x", rotation=45)
 
     title = f"{var_desc} ({var_name}) vs Drought Exposure Class\n"
@@ -773,6 +836,19 @@ def main():
     # ---------------------------------------------------------------------
     print("\n[Step 4/7] Linking women to drought classes...")
     linked = assign_nearest_drought_class(dhs_with_gps, drought_summary, lat_col, lon_col)
+    linked = apply_drought_class_mode(linked)
+    linked["drought_class_label"] = linked[DROUGHT_CLASS_COL].apply(drought_class_label_from_value)
+
+    if binary_comparision:
+        print("  -> Class mode: binary comparison (0 vs >=1 drought month)")
+    else:
+        print("  -> Class mode: full drought-month classes")
+
+    class_counts = linked["drought_class_label"].value_counts(dropna=True)
+    if not class_counts.empty:
+        print("  -> Women per drought class:")
+        for label, count in class_counts.items():
+            print(f"     {label}: {count:,}")
 
     # Create normalized analysis weights.
     if USE_WEIGHTS:
@@ -837,6 +913,7 @@ def main():
             "nearest_drought_lon",
             "nearest_drought_lat",
             DROUGHT_CLASS_COL,
+            "drought_class_label",
             MATCH_DISTANCE_DEG_COL,
             MATCH_DISTANCE_KM_COL,
             ANALYSIS_WEIGHT_COL,
@@ -886,6 +963,7 @@ def main():
             [
                 "variable",
                 "variable_description",
+                "drought_class_label",
                 "source_columns",
                 DROUGHT_CLASS_COL,
                 "n_total",
@@ -945,6 +1023,7 @@ def main():
     print(f"  - Use weights: {USE_WEIGHTS}")
     if USE_WEIGHTS:
         print(f"  - Weight preference: {WEIGHT_VARIABLE}")
+    print(f"  - binary_comparision: {binary_comparision}")
     print(f"  - Min women per class: {MIN_WOMEN_PER_CLASS}")
     print(f"  - Max match distance (deg): {MAX_MATCH_DISTANCE_DEG}")
     print(f"  - Bootstrap samples per class: {N_BOOTSTRAP}")

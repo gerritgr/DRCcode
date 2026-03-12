@@ -255,6 +255,28 @@ def load_drc_boundary():
         return None
 
 
+def get_unified_boundary_geometry(drc_boundary):
+    """
+    Return one unified geometry for the DRC boundary.
+    
+    Uses union_all() when available (preferred in recent GeoPandas/Shapely),
+    and falls back to unary_union for older versions.
+    """
+    # Newer GeoPandas API (preferred)
+    if hasattr(drc_boundary, "union_all"):
+        return drc_boundary.union_all()
+    if hasattr(drc_boundary, "geometry") and hasattr(drc_boundary.geometry, "union_all"):
+        return drc_boundary.geometry.union_all()
+    
+    # Backward compatibility for older versions
+    if hasattr(drc_boundary, "unary_union"):
+        return drc_boundary.unary_union
+    if hasattr(drc_boundary, "geometry") and hasattr(drc_boundary.geometry, "unary_union"):
+        return drc_boundary.geometry.unary_union
+    
+    raise AttributeError("Could not compute unified boundary geometry from drc_boundary")
+
+
 def create_alpha_mask_for_drc(grid_lon, grid_lat, drc_boundary, inside_alpha=1.0, outside_alpha=0.1):
     """
     Create an alpha (transparency) mask for grid, with different opacities inside/outside DRC.
@@ -282,7 +304,7 @@ def create_alpha_mask_for_drc(grid_lon, grid_lat, drc_boundary, inside_alpha=1.0
         print(f"    Outside DRC: {outside_alpha*100:.0f}% opacity")
         
         # Get the unified DRC geometry
-        drc_geom = drc_boundary.unary_union
+        drc_geom = get_unified_boundary_geometry(drc_boundary)
         
         # Create alpha mask (same shape as grid)
         height, width = grid_lon.shape
@@ -338,7 +360,7 @@ def mask_grid_to_drc(grid_lon, grid_lat, grid_values, drc_boundary):
         print(f"  → Masking grid to DRC boundary...")
         
         # Get the unified DRC geometry
-        drc_geom = drc_boundary.unary_union
+        drc_geom = get_unified_boundary_geometry(drc_boundary)
         
         # Create a copy of grid_values to mask
         masked_values = grid_values.copy()
