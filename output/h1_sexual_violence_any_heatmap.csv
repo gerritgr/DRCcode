@@ -1,0 +1,21 @@
+variable,variable_desc,wealth,wealth_label,education,education_label,prevalence,prevalence_pct,n_women
+sexual_violence_any,Sexual Violence (Any),1,Poorest,0,No education,0.1761006289308176,17.61006289308176,795
+sexual_violence_any,Sexual Violence (Any),1,Poorest,1,Primary,0.21797520661157024,21.797520661157023,968
+sexual_violence_any,Sexual Violence (Any),1,Poorest,2,Secondary,0.22103658536585366,22.103658536585368,656
+sexual_violence_any,Sexual Violence (Any),1,Poorest,3,Higher,0.0,0.0,1
+sexual_violence_any,Sexual Violence (Any),2,Poorer,0,No education,0.17537313432835822,17.537313432835823,536
+sexual_violence_any,Sexual Violence (Any),2,Poorer,1,Primary,0.2209026128266033,22.090261282660332,842
+sexual_violence_any,Sexual Violence (Any),2,Poorer,2,Secondary,0.2042755344418052,20.42755344418052,842
+sexual_violence_any,Sexual Violence (Any),2,Poorer,3,Higher,0.0,0.0,3
+sexual_violence_any,Sexual Violence (Any),3,Middle,0,No education,0.1721311475409836,17.21311475409836,366
+sexual_violence_any,Sexual Violence (Any),3,Middle,1,Primary,0.21517027863777088,21.517027863777088,646
+sexual_violence_any,Sexual Violence (Any),3,Middle,2,Secondary,0.20509849362688296,20.509849362688296,863
+sexual_violence_any,Sexual Violence (Any),3,Middle,3,Higher,0.3333333333333333,33.33333333333333,15
+sexual_violence_any,Sexual Violence (Any),4,Richer,0,No education,0.14912280701754385,14.912280701754385,114
+sexual_violence_any,Sexual Violence (Any),4,Richer,1,Primary,0.22382671480144403,22.382671480144403,277
+sexual_violence_any,Sexual Violence (Any),4,Richer,2,Secondary,0.2322435174746336,23.22435174746336,887
+sexual_violence_any,Sexual Violence (Any),4,Richer,3,Higher,0.125,12.5,48
+sexual_violence_any,Sexual Violence (Any),5,Richest,0,No education,0.23076923076923078,23.076923076923077,13
+sexual_violence_any,Sexual Violence (Any),5,Richest,1,Primary,0.2,20.0,40
+sexual_violence_any,Sexual Violence (Any),5,Richest,2,Secondary,0.1085814360770578,10.85814360770578,571
+sexual_violence_any,Sexual Violence (Any),5,Richest,3,Higher,0.0782122905027933,7.82122905027933,179

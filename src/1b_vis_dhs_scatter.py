@@ -6,8 +6,8 @@ DHS (DRC 2023–24) — Cluster-Level Correlation Analysis
 ================================================================================
 
 Reads:  DATA/DHS/women_all_answers_gps.csv
-Writes: output/cluster_correlation_scatter.jpg
-        output/cluster_correlation_data.csv
+Writes: output/1b_cluster_correlation_scatter.jpg
+        output/1b_cluster_correlation_data.csv
 ================================================================================
 """
 
@@ -21,13 +21,14 @@ from scipy import stats
 # USER CONFIGURATION
 # =============================================================================
 
-VARIABLE_1 = "d107"  # X-axis
-VARIABLE_2 = "d108"  # Y-axis
+VARIABLE_1 = "sexual_violence_any"     # X-axis
+VARIABLE_2 = "sexual_violence_recent"  # Y-axis
 
-VARIABLE_1_LABEL = "Severe Violence (d107)"
-VARIABLE_2_LABEL = "Sexual Violence (d108)"
+VARIABLE_1_LABEL = "Sexual Violence (Any)"
+VARIABLE_2_LABEL = "Sexual Violence (Recent)"
 
 USE_WEIGHTS = True  # two-stage v005 weighting
+WEIGHT_VARIABLE = "v005"
 
 DPI = 300
 FIGSIZE = (10, 10)
@@ -137,7 +138,9 @@ print("CLUSTER-LEVEL CORRELATION ANALYSIS (TWO-STAGE WEIGHTING)")
 print("=" * 70)
 print(f"\nVariable 1 (X-axis): {VARIABLE_1} - {VARIABLE_1_LABEL}")
 print(f"Variable 2 (Y-axis): {VARIABLE_2} - {VARIABLE_2_LABEL}")
-print(f"Weighting: {'Enabled (two-stage v005)' if USE_WEIGHTS else 'Disabled'}")
+print(
+    f"Weighting: {'Enabled (two-stage ' + WEIGHT_VARIABLE + ')' if USE_WEIGHTS else 'Disabled'}"
+)
 print(f"Input: {INPUT_CSV}")
 print(f"Output dir: {OUTDIR}")
 print()
@@ -153,7 +156,7 @@ data = pd.read_csv(INPUT_CSV)
 print(f"  ✓ Loaded {len(data):,} women's records")
 
 # Standardize variable names (accept uppercase)
-for v in (VARIABLE_1, VARIABLE_2, "v001", "v005"):
+for v in (VARIABLE_1, VARIABLE_2, "v001", WEIGHT_VARIABLE):
     if v.upper() in data.columns and v not in data.columns:
         data.rename(columns={v.upper(): v}, inplace=True)
 
@@ -174,10 +177,10 @@ print(f"  → {var2_binary.notna().sum():,} women answered {VARIABLE_2}")
 
 # Weights
 if USE_WEIGHTS:
-    if "v005" in data.columns:
-        weights = pd.to_numeric(data["v005"], errors="coerce") / 1_000_000.0
+    if WEIGHT_VARIABLE in data.columns:
+        weights = pd.to_numeric(data[WEIGHT_VARIABLE], errors="coerce") / 1_000_000.0
     else:
-        print("  ⚠ Warning: v005 not found, using equal weights")
+        print(f"  ⚠ Warning: {WEIGHT_VARIABLE} not found, using equal weights")
         weights = pd.Series(1.0, index=data.index)
 else:
     weights = pd.Series(1.0, index=data.index)
@@ -203,7 +206,11 @@ def cluster_summary(g: pd.DataFrame) -> pd.Series:
         }
     )
 
-cluster_stats = temp_df.groupby("cluster_id", dropna=False).apply(cluster_summary).reset_index()
+cluster_stats = (
+    temp_df.groupby("cluster_id", dropna=False)
+    .apply(cluster_summary, include_groups=False)
+    .reset_index()
+)
 
 # Keep only clusters where both fractions are defined
 cluster_stats = cluster_stats.dropna(subset=["fraction_var1", "fraction_var2"])
@@ -240,7 +247,7 @@ if USE_WEIGHTS:
 
     # p-value: unweighted fallback (common pragmatic choice)
     _, pearson_p = stats.pearsonr(cluster_stats["fraction_var1"], cluster_stats["fraction_var2"])
-    weighting_note = "Two-stage weighted (v005)"
+    weighting_note = f"Two-stage weighted ({WEIGHT_VARIABLE})"
 else:
     pearson_r, pearson_p = stats.pearsonr(cluster_stats["fraction_var1"], cluster_stats["fraction_var2"])
     slope, intercept, r_value, p_value, std_err = stats.linregress(
@@ -261,6 +268,8 @@ print(f"  → Regression: y = {slope:.3f}x + {intercept:.3f}")
 # =============================================================================
 
 fig, ax = plt.subplots(figsize=FIGSIZE)
+fig.patch.set_facecolor("white")
+ax.set_facecolor("white")
 
 sc = ax.scatter(
     cluster_stats["fraction_var1"],
@@ -275,10 +284,22 @@ sc = ax.scatter(
 )
 
 cbar = plt.colorbar(sc, ax=ax)
-cbar.set_label("Cluster total weight (sum v005)", fontsize=11)
+cbar.set_label(f"Cluster total weight (sum {WEIGHT_VARIABLE})", fontsize=11)
 
 x_line = np.array([0.0, 1.0])
 y_line = slope * x_line + intercept
+
+# Perfect-diagonal reference (y=x): thin, gray, low-opacity.
+ax.plot(
+    x_line,
+    x_line,
+    color="gray",
+    linewidth=0.8,
+    alpha=0.2,
+    linestyle="-",
+    zorder=0,
+)
+
 ax.plot(
     x_line,
     y_line,
@@ -294,7 +315,7 @@ ax.set_xlabel(f"Fraction - {VARIABLE_1_LABEL}", fontsize=13, fontweight="bold")
 ax.set_ylabel(f"Fraction - {VARIABLE_2_LABEL}", fontsize=13, fontweight="bold")
 
 title_suffix = (
-    "\n(Two-Stage Weighted: Stage 1 = within-cluster v005, Stage 2 = across-cluster total v005)"
+    f"\n(Two-Stage Weighted: Stage 1 = within-cluster {WEIGHT_VARIABLE}, Stage 2 = across-cluster total {WEIGHT_VARIABLE})"
     if USE_WEIGHTS
     else "\n(Unweighted)"
 )
@@ -307,6 +328,7 @@ ax.set_title(
 
 ax.set_xlim(-0.05, 1.05)
 ax.set_ylim(-0.05, 1.05)
+ax.set_aspect("equal", adjustable="box")
 
 ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f"{x:.0%}"))
 ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, p: f"{y:.0%}"))
@@ -320,7 +342,10 @@ stats_text = (
     f"n = {len(cluster_stats)} clusters"
 )
 if USE_WEIGHTS:
-    stats_text += "\n\nStage 1: Within-cluster v005\nStage 2: Across-cluster total v005"
+    stats_text += (
+        f"\n\nStage 1: Within-cluster {WEIGHT_VARIABLE}"
+        f"\nStage 2: Across-cluster total {WEIGHT_VARIABLE}"
+    )
 
 ax.text(
     0.05,

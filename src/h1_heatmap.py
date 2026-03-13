@@ -76,7 +76,14 @@ COLOR_SCHEME = "rocket"
 
 # VARIABLES TO VISUALIZE
 # Define which DHS variables to create heatmaps for
-VARIABLES_TO_PLOT = ["D111", "D104", "D106", "D108"]
+VARIABLES_TO_PLOT = [
+    "D111",
+    "D104",
+    "D106",
+    "D108",
+    "sexual_violence_any",
+    "sexual_violence_recent",
+]
 
 # VARIABLE DESCRIPTIONS
 # Maps variable codes to their full descriptions for figure titles
@@ -85,6 +92,8 @@ VARIABLE_DESCRIPTIONS = {
     "D104": "Emotional IPV",
     "D106": "Physical IPV",
     "D108": "Sexual IPV",
+    "sexual_violence_any": "Sexual Violence (Any)",
+    "sexual_violence_recent": "Sexual Violence (Recent)",
 }
 
 # INPUT VARIABLES (socioeconomic factors)

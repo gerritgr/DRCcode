@@ -118,6 +118,22 @@ TARGET_INDICATORS = [
         "no": [0, 3],
     },
     {
+        "id": "SEXUAL_VIOLENCE_ANY",
+        "description": "Sexual violence (any; D108==1 or D124==1 or D125==1)",
+        "type": "single",
+        "column": "sexual_violence_any",
+        "yes": [1],
+        "no": [0],
+    },
+    {
+        "id": "SEXUAL_VIOLENCE_RECENT",
+        "description": "Sexual violence (recent; D105H/I/K in {1,2})",
+        "type": "single",
+        "column": "sexual_violence_recent",
+        "yes": [1],
+        "no": [0],
+    },
+    {
         "id": "NONPARTNER_PHYSICAL_12M",
         "description": "Hit by someone other than husband/partner (last 12m)",
         "type": "single",

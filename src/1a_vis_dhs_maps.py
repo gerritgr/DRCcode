@@ -16,13 +16,13 @@ This script creates MAP visualizations from the processed DHS data:
 
 INPUTS:
 -------
-- DATA/DHS/women_indicators_gps.csv (created by convert.py)
+- DATA/DHS/women_all_answers_gps.csv (main DHS dataset with GPS)
 - DATA/background.png (optional background map of DRC)
 
 OUTPUTS:
 --------
-- indicator1_sv_ever_map.jpg (map of sexual violence prevalence)
-- indicator2_severe_ever_map.jpg (map of severe violence prevalence)
+- 1a_sexual_violence_any_map.jpg (map of sexual violence-any prevalence)
+- 1a_sexual_violence_recent_map.jpg (map of recent sexual violence prevalence)
 
 All outputs are saved in the output/ directory (same level as src/).
 
@@ -65,8 +65,12 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 # Input files
 DATA_DIR = PROJECT_ROOT / "DATA"
 DHS_DIR = DATA_DIR / "DHS"
-INPUT_CSV = DHS_DIR / "women_indicators_gps.csv"
+INPUT_CSV = DHS_DIR / "women_all_answers_gps.csv"
 BACKGROUND_IMAGE = DATA_DIR / "background.png"
+
+# Required indicator columns in women_all_answers_gps.csv
+INDICATOR_ANY = "sexual_violence_any"
+INDICATOR_RECENT = "sexual_violence_recent"
 
 # Output directory (output/ at same level as src/)
 OUTPUT_DIR = PROJECT_ROOT / "output"
@@ -79,6 +83,7 @@ EXTENT = [11.893979235367297, 31.616531541802978, -13.981788316118982, 5.8118259
 
 # Visualization settings
 USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
+WEIGHT_VARIABLE = "v005"    # Match h1_heatmap.py style: use v005 and scale by 1,000,000
 DPI = 300                   # Resolution of output images (dots per inch)
 BG_ALPHA = 0.9            # Transparency of background map (0=invisible, 1=opaque)
 CMAP = "magma"             # Color map for prevalence (dark purple to yellow)
@@ -123,6 +128,17 @@ def weighted_prop(values, weights):
         return np.nan
 
     return float((v[mask] * w[mask]).sum() / w[mask].sum())
+
+
+def resolve_column_name(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    """
+    Return the first matching column name from candidates (case-insensitive).
+    """
+    col_lookup = {c.lower(): c for c in df.columns}
+    for candidate in candidates:
+        if candidate.lower() in col_lookup:
+            return col_lookup[candidate.lower()]
+    return None
 
 
 # =============================================================================
@@ -171,25 +187,67 @@ def main():
     data = pd.read_csv(INPUT_CSV)
     print(f"  → Loaded {len(data):,} women's records")
 
+    # Resolve required columns from the main DHS dataset.
+    cluster_col = resolve_column_name(data, ["cluster_id", "v001"])
+    weight_col = resolve_column_name(data, [WEIGHT_VARIABLE])
+    lat_col = resolve_column_name(data, ["LATNUM"])
+    lon_col = resolve_column_name(data, ["LONGNUM"])
+    indicator_any_col = resolve_column_name(data, [INDICATOR_ANY])
+    indicator_recent_col = resolve_column_name(data, [INDICATOR_RECENT])
+
+    required = {
+        "cluster id": cluster_col,
+        "latitude": lat_col,
+        "longitude": lon_col,
+        INDICATOR_ANY: indicator_any_col,
+        INDICATOR_RECENT: indicator_recent_col,
+    }
+    missing_required = [label for label, col in required.items() if col is None]
+    if missing_required:
+        print("\nERROR: Missing required columns in input CSV:")
+        for label in missing_required:
+            print(f"  - {label}")
+        print("\nHint: run src/0_add_rows_of_interest.py first to create the two indicators.")
+        sys.exit(1)
+
+    # Normalize/derive standard working columns so downstream plotting logic stays simple.
+    data["cluster_id"] = data[cluster_col]
+    data["LATNUM"] = pd.to_numeric(data[lat_col], errors="coerce")
+    data["LONGNUM"] = pd.to_numeric(data[lon_col], errors="coerce")
+    data["_sv_any_num"] = pd.to_numeric(data[indicator_any_col], errors="coerce")
+    data["_sv_recent_num"] = pd.to_numeric(data[indicator_recent_col], errors="coerce")
+
+    if USE_WEIGHTS:
+        # Match h1_heatmap.py behavior: use selected DHS weight variable and scale by 1e6.
+        if weight_col is not None:
+            data["sampling_weight"] = (
+                pd.to_numeric(data[weight_col], errors="coerce") / 1_000_000.0
+            )
+            weight_source_msg = f"{weight_col} / 1,000,000"
+        else:
+            print(f"\nWARNING: {WEIGHT_VARIABLE} not found, using equal weights.")
+            data["sampling_weight"] = 1.0
+            weight_source_msg = "equal weights (fallback)"
+
     # Aggregate to cluster level
     print("\nAggregating women's responses by cluster...")
 
     if USE_WEIGHTS:
         # WEIGHTED aggregation (nationally representative)
         print("  Using WEIGHTED aggregation (recommended)")
-        print("  → Accounts for DHS sampling design")
+        print(f"  → Accounts for DHS sampling design ({weight_source_msg})")
 
         agg = (
             data.groupby("cluster_id")
                 .apply(lambda g: pd.Series({
-                    # Weighted prevalence for sexual violence (ever)
-                    "fraction_sv_ever": weighted_prop(
-                        g["sv_ever"],
+                    # Weighted prevalence for sexual violence (any)
+                    "fraction_any": weighted_prop(
+                        g["_sv_any_num"],
                         g["sampling_weight"]
                     ),
-                    # Weighted prevalence for severe violence (ever)
-                    "fraction_other": weighted_prop(
-                        g["other_indicator"],
+                    # Weighted prevalence for sexual violence (recent)
+                    "fraction_recent": weighted_prop(
+                        g["_sv_recent_num"],
                         g["sampling_weight"]
                     ),
                     # Sample size (number of women)
@@ -201,7 +259,7 @@ def main():
                 .reset_index()
         )
         title_suffix = "Weighted"
-        subtitle = "Weighted by DHS sampling probability (v005)"
+        subtitle = f"Weighted by {weight_source_msg}"
 
     else:
         # UNWEIGHTED aggregation (simple percentages)
@@ -211,8 +269,8 @@ def main():
         agg = (
             data.groupby("cluster_id")
                 .agg(
-                    fraction_sv_ever=("sv_ever", "mean"),
-                    fraction_other=("other_indicator", "mean"),
+                    fraction_any=("_sv_any_num", "mean"),
+                    fraction_recent=("_sv_recent_num", "mean"),
                     n_women=("cluster_id", "size"),
                     LATNUM=("LATNUM", "first"),
                     LONGNUM=("LONGNUM", "first")
@@ -225,10 +283,10 @@ def main():
     print(f"  → Created summary for {len(agg):,} clusters")
 
     # Report statistics
-    mean_sv = agg["fraction_sv_ever"].mean()
-    mean_other = agg["fraction_other"].mean()
-    print(f"  → Mean sexual violence (ever) prevalence: {mean_sv:.1%}")
-    print(f"  → Mean severe violence (ever) prevalence: {mean_other:.1%}")
+    mean_any = agg["fraction_any"].mean()
+    mean_recent = agg["fraction_recent"].mean()
+    print(f"  → Mean sexual violence (any) prevalence: {mean_any:.1%}")
+    print(f"  → Mean sexual violence (recent) prevalence: {mean_recent:.1%}")
 
     # Filter to valid data within map extent
     # IMPORTANT: Match original script - only require first indicator here
@@ -236,7 +294,7 @@ def main():
     plot_df = agg[
         (agg["LONGNUM"] >= EXTENT[0]) & (agg["LONGNUM"] <= EXTENT[1]) &
         (agg["LATNUM"] >= EXTENT[2]) & (agg["LATNUM"] <= EXTENT[3]) &
-        agg["fraction_sv_ever"].notna()  # Only first indicator required
+        agg["fraction_any"].notna()  # Only first indicator required
     ].copy()
 
     print(f"  → {len(plot_df):,} clusters within map extent with valid data")
@@ -262,11 +320,14 @@ def main():
     else:
         bg = None
 
+    # Label used in colorbars to document weighting choice.
+    value_note = f"(weighted by {weight_source_msg})" if USE_WEIGHTS else "(unweighted)"
+
     # Determine shared color scale across both maps
     vmin = 0.0
-    vmax_sv = float(np.nanmax(plot_df["fraction_sv_ever"].to_numpy()))
-    vmax_other = float(np.nanmax(plot_df["fraction_other"].to_numpy()))
-    vmax = max(vmax_sv, vmax_other)
+    vmax_any = float(np.nanmax(plot_df["fraction_any"].to_numpy()))
+    vmax_recent = float(np.nanmax(plot_df["fraction_recent"].to_numpy()))
+    vmax = max(vmax_any, vmax_recent)
 
     if not np.isfinite(vmax) or vmax <= 0:
         vmax = 1.0
@@ -304,11 +365,11 @@ def main():
     print(f"  → Marker area range: {SIZE_MIN:.0f} to {SIZE_MAX:.0f} points²")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # MAP 1: Sexual violence (ever) - d108
+    # MAP 1: Sexual violence (any)
     # ─────────────────────────────────────────────────────────────────────────
-    print("\nCreating Map 1: Sexual violence (ever) prevalence...")
+    print("\nCreating Map 1: Sexual violence (any) prevalence...")
 
-    df_sv = plot_df.dropna(subset=["fraction_sv_ever", "LATNUM", "LONGNUM"]).copy()
+    df_sv = plot_df.dropna(subset=["fraction_any", "LATNUM", "LONGNUM"]).copy()
 
     fig1, ax1 = plt.subplots(figsize=(14, 11))
 
@@ -320,7 +381,7 @@ def main():
     sc1 = ax1.scatter(
         df_sv["LONGNUM"],
         df_sv["LATNUM"],
-        c=df_sv["fraction_sv_ever"],
+        c=df_sv["fraction_any"],
         s=sizes.loc[df_sv.index],
         cmap=CMAP,
         vmin=vmin,
@@ -336,7 +397,7 @@ def main():
     ax1.set_aspect("equal", "box")
     ax1.set_axis_off()
     ax1.set_title(
-        f"Prevalence ({title_suffix})\nSexual Violence (Ever) — d108\n{subtitle}",
+        f"Prevalence ({title_suffix})\nSexual Violence (Any)\n{subtitle}",
         fontsize=14,
         fontweight="bold",
         pad=20
@@ -346,7 +407,7 @@ def main():
     cbar1 = plt.colorbar(sc1, ax=ax1, orientation="vertical",
                          fraction=0.03, pad=0.02)
     cbar1.set_label(
-        "Fraction Reporting Sexual Violence (Ever)\n(weighted by sampling probability)",
+        f"Fraction Reporting Sexual Violence (Any)\n{value_note}",
         rotation=90,
         fontsize=11,
         labelpad=15
@@ -383,16 +444,16 @@ def main():
     )
 
     # Save map 1
-    output1 = OUTPUT_DIR / "1a_indicator1_sv_ever_map.jpg"
+    output1 = OUTPUT_DIR / "1a_sexual_violence_any_map.jpg"
     plt.savefig(output1, dpi=DPI, bbox_inches="tight")
     plt.close()
 
-    output1_csv = OUTPUT_DIR / "1a_indicator1_sv_ever_map.csv"
+    output1_csv = OUTPUT_DIR / "1a_sexual_violence_any_map.csv"
     pd.DataFrame(
         {
             "LONGNUM": df_sv["LONGNUM"],
             "LATNUM": df_sv["LATNUM"],
-            "value": df_sv["fraction_sv_ever"],
+            "value": df_sv["fraction_any"],
             "size": sizes.loc[df_sv.index],
             "n_women": df_sv["n_women"],
             "cluster_id": df_sv["cluster_id"],
@@ -404,11 +465,11 @@ def main():
     print(f"    → {len(df_sv):,} clusters plotted")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # MAP 2: Severe violence (ever) - d107
+    # MAP 2: Sexual violence (recent)
     # ─────────────────────────────────────────────────────────────────────────
-    print("\nCreating Map 2: Severe violence (ever) prevalence...")
+    print("\nCreating Map 2: Sexual violence (recent) prevalence...")
 
-    df_other = plot_df.dropna(subset=["fraction_other", "LATNUM", "LONGNUM"]).copy()
+    df_other = plot_df.dropna(subset=["fraction_recent", "LATNUM", "LONGNUM"]).copy()
 
     fig2, ax2 = plt.subplots(figsize=(14, 11))
 
@@ -420,7 +481,7 @@ def main():
     sc2 = ax2.scatter(
         df_other["LONGNUM"],
         df_other["LATNUM"],
-        c=df_other["fraction_other"],
+        c=df_other["fraction_recent"],
         s=sizes.loc[df_other.index],
         cmap=CMAP,
         vmin=vmin,
@@ -436,7 +497,7 @@ def main():
     ax2.set_aspect("equal", "box")
     ax2.set_axis_off()
     ax2.set_title(
-        f"Prevalence ({title_suffix})\nSevere Violence (Ever) — d107\n{subtitle}",
+        f"Prevalence ({title_suffix})\nSexual Violence (Recent)\n{subtitle}",
         fontsize=14,
         fontweight="bold",
         pad=20
@@ -446,7 +507,7 @@ def main():
     cbar2 = plt.colorbar(sc2, ax=ax2, orientation="vertical",
                          fraction=0.03, pad=0.02)
     cbar2.set_label(
-        "Fraction Reporting Severe Violence (Ever)\n(weighted by sampling probability)",
+        f"Fraction Reporting Sexual Violence (Recent)\n{value_note}",
         rotation=90,
         fontsize=11,
         labelpad=15
@@ -480,16 +541,16 @@ def main():
     )
 
     # Save map 2
-    output2 = OUTPUT_DIR / "1a_indicator2_severe_ever_map.jpg"
+    output2 = OUTPUT_DIR / "1a_sexual_violence_recent_map.jpg"
     plt.savefig(output2, dpi=DPI, bbox_inches="tight")
     plt.close()
 
-    output2_csv = OUTPUT_DIR / "1a_indicator2_severe_ever_map.csv"
+    output2_csv = OUTPUT_DIR / "1a_sexual_violence_recent_map.csv"
     pd.DataFrame(
         {
             "LONGNUM": df_other["LONGNUM"],
             "LATNUM": df_other["LATNUM"],
-            "value": df_other["fraction_other"],
+            "value": df_other["fraction_recent"],
             "size": sizes.loc[df_other.index],
             "n_women": df_other["n_women"],
             "cluster_id": df_other["cluster_id"],
@@ -507,17 +568,17 @@ def main():
     print("VISUALIZATION COMPLETE!")
     print("=" * 70)
     print(f"\n📊 OUTPUT FILES (saved in {OUTPUT_DIR.name}/):")
-    print(f"\n  1. 1a_indicator1_sv_ever_map.jpg")
-    print(f"     → Map of sexual violence (ever) prevalence")
+    print(f"\n  1. 1a_sexual_violence_any_map.jpg")
+    print(f"     → Map of sexual violence (any) prevalence")
     print(f"     → {len(df_sv):,} clusters visualized")
-    print(f"\n  2. 1a_indicator1_sv_ever_map.csv")
-    print(f"     → Data behind the sexual violence map (location/value/size)")
+    print(f"\n  2. 1a_sexual_violence_any_map.csv")
+    print(f"     → Data behind the sexual violence-any map (location/value/size)")
 
-    print(f"\n  3. 1a_indicator2_severe_ever_map.jpg")
-    print(f"     → Map of severe violence (ever) prevalence")
+    print(f"\n  3. 1a_sexual_violence_recent_map.jpg")
+    print(f"     → Map of sexual violence (recent) prevalence")
     print(f"     → {len(df_other):,} clusters visualized")
-    print(f"\n  4. 1a_indicator2_severe_ever_map.csv")
-    print(f"     → Data behind the severe violence map (location/value/size)")
+    print(f"\n  4. 1a_sexual_violence_recent_map.csv")
+    print(f"     → Data behind the sexual violence-recent map (location/value/size)")
 
     print(f"\n⚙️  Settings:")
     print(f"  → Weighting: {title_suffix}")

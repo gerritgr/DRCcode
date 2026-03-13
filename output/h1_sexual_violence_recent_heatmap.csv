@@ -1,0 +1,21 @@
+variable,variable_desc,wealth,wealth_label,education,education_label,prevalence,prevalence_pct,n_women
+sexual_violence_recent,Sexual Violence (Recent),1,Poorest,0,No education,0.11320754716981132,11.320754716981133,795
+sexual_violence_recent,Sexual Violence (Recent),1,Poorest,1,Primary,0.16632231404958678,16.632231404958677,968
+sexual_violence_recent,Sexual Violence (Recent),1,Poorest,2,Secondary,0.1600609756097561,16.00609756097561,656
+sexual_violence_recent,Sexual Violence (Recent),1,Poorest,3,Higher,0.0,0.0,1
+sexual_violence_recent,Sexual Violence (Recent),2,Poorer,0,No education,0.13246268656716417,13.246268656716417,536
+sexual_violence_recent,Sexual Violence (Recent),2,Poorer,1,Primary,0.15914489311163896,15.914489311163896,842
+sexual_violence_recent,Sexual Violence (Recent),2,Poorer,2,Secondary,0.15795724465558195,15.795724465558195,842
+sexual_violence_recent,Sexual Violence (Recent),2,Poorer,3,Higher,0.0,0.0,3
+sexual_violence_recent,Sexual Violence (Recent),3,Middle,0,No education,0.12021857923497267,12.021857923497267,366
+sexual_violence_recent,Sexual Violence (Recent),3,Middle,1,Primary,0.14241486068111456,14.241486068111456,646
+sexual_violence_recent,Sexual Violence (Recent),3,Middle,2,Secondary,0.14947856315179606,14.947856315179605,863
+sexual_violence_recent,Sexual Violence (Recent),3,Middle,3,Higher,0.2,20.0,15
+sexual_violence_recent,Sexual Violence (Recent),4,Richer,0,No education,0.13157894736842105,13.157894736842104,114
+sexual_violence_recent,Sexual Violence (Recent),4,Richer,1,Primary,0.1444043321299639,14.440433212996389,277
+sexual_violence_recent,Sexual Violence (Recent),4,Richer,2,Secondary,0.1668545659526494,16.685456595264938,887
+sexual_violence_recent,Sexual Violence (Recent),4,Richer,3,Higher,0.10416666666666667,10.416666666666668,48
+sexual_violence_recent,Sexual Violence (Recent),5,Richest,0,No education,0.15384615384615385,15.384615384615385,13
+sexual_violence_recent,Sexual Violence (Recent),5,Richest,1,Primary,0.175,17.5,40
+sexual_violence_recent,Sexual Violence (Recent),5,Richest,2,Secondary,0.07355516637478109,7.355516637478108,571
+sexual_violence_recent,Sexual Violence (Recent),5,Richest,3,Higher,0.0446927374301676,4.4692737430167595,179
