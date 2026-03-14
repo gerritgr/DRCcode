@@ -19,20 +19,20 @@ INPUTS:
 
 OUTPUTS:
 --------
-- h9b_all_events.png (all events on map)
-- h9b_all_events.pdf (all events on map, vector format)
-- h9b_drc_only.png (DRC events only)
-- h9b_drc_only.pdf (DRC events only, vector format)
-- h9b_non_drc_only.png (non-DRC events only)
-- h9b_non_drc_only.pdf (non-DRC events only, vector format)
-- h9b_filtered_events.csv (filtered event data)
+- h09b_all_events.png (all events on map)
+- h09b_all_events.pdf (all events on map, vector format)
+- h09b_drc_only.png (DRC events only)
+- h09b_drc_only.pdf (DRC events only, vector format)
+- h09b_non_drc_only.png (non-DRC events only)
+- h09b_non_drc_only.pdf (non-DRC events only, vector format)
+- h09b_filtered_events.csv (filtered event data)
 
 All outputs are saved in the output/ directory.
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/h9b_conflict_viz.py
+    python src/h09b_conflict_visuals.py
 
 REQUIREMENTS:
 -------------
@@ -611,7 +611,7 @@ def main():
     print("-" * 70)
     
     # Save filtered events to CSV
-    output_csv = OUTPUT_DIR / "h9b_filtered_events.csv"
+    output_csv = OUTPUT_DIR / "h09b_filtered_events.csv"
     aoi_events.to_csv(output_csv, index=False)
     print(f"  ✓ Saved: {output_csv.name} ({len(aoi_events):,} events)")
     
@@ -631,7 +631,7 @@ def main():
     # All events
     plot_events_on_map(
         aoi_events,
-        OUTPUT_DIR / "h9b_all_events.png",
+        OUTPUT_DIR / "h09b_all_events.png",
         f"Armed Conflict Events in DRC Region\n"
         f"Total Events: {len(aoi_events):,} | "
         f"DRC: {n_drc:,} | Non-DRC: {n_non_drc:,}\n"
@@ -645,7 +645,7 @@ def main():
     if n_drc > 0:
         plot_events_on_map(
             aoi_events[is_drc],
-            OUTPUT_DIR / "h9b_drc_only.png",
+            OUTPUT_DIR / "h09b_drc_only.png",
             f"Armed Conflict Events in DRC\n"
             f"Total Events: {n_drc:,} | Total Fatalities: {int(aoi_events[is_drc]['FATALITIES'].sum()):,}",
             background_img,
@@ -657,7 +657,7 @@ def main():
     if n_non_drc > 0:
         plot_events_on_map(
             aoi_events[~is_drc],
-            OUTPUT_DIR / "h9b_non_drc_only.png",
+            OUTPUT_DIR / "h09b_non_drc_only.png",
             f"Armed Conflict Events in Neighboring Countries\n"
             f"Total Events: {n_non_drc:,} | Total Fatalities: {int(aoi_events[~is_drc]['FATALITIES'].sum()):,}",
             background_img,
@@ -674,27 +674,27 @@ def main():
     
     print(f"\n📊 OUTPUT FILES (saved in {OUTPUT_DIR.name}/):\n")
     
-    print(f"  1. h9b_filtered_events.csv")
+    print(f"  1. h09b_filtered_events.csv")
     print(f"     → Filtered event data ({len(aoi_events):,} events)\n")
     
-    print(f"  2. h9b_all_events.png")
+    print(f"  2. h09b_all_events.png")
     print(f"     → Map showing all events (DRC + neighboring countries)\n")
     
-    print(f"  3. h9b_all_events.pdf")
+    print(f"  3. h09b_all_events.pdf")
     print(f"     → Map showing all events (vector format)\n")
     
     if n_drc > 0:
-        print(f"  4. h9b_drc_only.png")
+        print(f"  4. h09b_drc_only.png")
         print(f"     → Map showing DRC events only\n")
         
-        print(f"  5. h9b_drc_only.pdf")
+        print(f"  5. h09b_drc_only.pdf")
         print(f"     → Map showing DRC events only (vector format)\n")
     
     if n_non_drc > 0:
-        print(f"  6. h9b_non_drc_only.png")
+        print(f"  6. h09b_non_drc_only.png")
         print(f"     → Map showing non-DRC events only\n")
         
-        print(f"  7. h9b_non_drc_only.pdf")
+        print(f"  7. h09b_non_drc_only.pdf")
         print(f"     → Map showing non-DRC events only (vector format)\n")
     
     print(f"⚙️  VISUALIZATION SETTINGS:")

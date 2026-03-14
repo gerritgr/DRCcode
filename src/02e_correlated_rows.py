@@ -18,7 +18,7 @@ INPUT_CSV = PROJECT_ROOT / "DATA" / "DHS" / "women_all_answers_gps.csv"
 
 OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_TXT = OUTPUT_DIR / "2e_correlations.txt"
+OUTPUT_TXT = OUTPUT_DIR / "02e_correlations.txt"
 
 IPV_INDICATORS = ["d111", "d104", "d106", "d108"]
 

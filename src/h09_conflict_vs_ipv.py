@@ -28,16 +28,16 @@ INPUTS:
 OUTPUTS:
 --------
 For each indicator in TARGET_INDICATORS:
-- h9_{indicator}_curve.csv (individual-level data: woman_id, distance_km, ipv_response)
-- h9_{indicator}_curve.jpg (visualization - JPG format, 300 DPI)
-- h9_{indicator}_curve.pdf (visualization - PDF format, vector)
+- h09_{indicator}_curve.csv (individual-level data: woman_id, distance_km, ipv_response)
+- h09_{indicator}_curve.jpg (visualization - JPG format, 300 DPI)
+- h09_{indicator}_curve.pdf (visualization - PDF format, vector)
 
 All outputs are saved in the output/ directory (same level as src/).
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/h9_conflict_vs_ipv.py
+    python src/h09_conflict_vs_ipv.py
 
 REQUIREMENTS:
 -------------
@@ -235,7 +235,7 @@ INPUT_ACLED_XLSX = CONFLICT_DIR / "Africa_lagged_data_up_to-2024-10-17.xlsx"
 OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Note: Output paths will be generated per variable (e.g., h9_d111_curve.csv, h9_d104_curve.csv, etc.)
+# Note: Output paths will be generated per indicator (e.g., h09_ipv12m_any_curve.csv).
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -724,9 +724,9 @@ def main():
         print(f"{'='*70}")
         
         # Generate output paths for this indicator
-        OUTPUT_CSV = OUTPUT_DIR / f"h9_{indicator_slug}_curve.csv"
-        OUTPUT_JPG = OUTPUT_DIR / f"h9_{indicator_slug}_curve.jpg"
-        OUTPUT_PDF = OUTPUT_DIR / f"h9_{indicator_slug}_curve.pdf"
+        OUTPUT_CSV = OUTPUT_DIR / f"h09_{indicator_slug}_curve.csv"
+        OUTPUT_JPG = OUTPUT_DIR / f"h09_{indicator_slug}_curve.jpg"
+        OUTPUT_PDF = OUTPUT_DIR / f"h09_{indicator_slug}_curve.pdf"
         
         # Build binary indicator from source column(s)
         print(f"\nBuilding binary indicator...")

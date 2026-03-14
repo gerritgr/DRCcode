@@ -6,8 +6,8 @@ DHS (DRC 2023–24) — Cluster-Level Correlation Analysis
 ================================================================================
 
 Reads:  DATA/DHS/women_all_answers_gps.csv
-Writes: output/1b_cluster_correlation_scatter.jpg
-        output/1b_cluster_correlation_data.csv
+Writes: output/01b_cluster_correlation_scatter.jpg
+        output/01b_cluster_correlation_data.csv
 ================================================================================
 """
 
@@ -217,7 +217,7 @@ cluster_stats = cluster_stats.dropna(subset=["fraction_var1", "fraction_var2"])
 
 print(f"  ✓ Aggregated to {len(cluster_stats):,} clusters with data for both variables")
 
-output_csv = OUTDIR / "1b_cluster_correlation_data.csv"
+output_csv = OUTDIR / "01b_cluster_correlation_data.csv"
 cluster_stats.to_csv(output_csv, index=False)
 print(f"  ✓ Saved cluster data: {output_csv}")
 
@@ -359,7 +359,7 @@ ax.text(
 
 ax.legend(loc="lower right", fontsize=10, framealpha=0.9)
 
-output_fig = OUTDIR / "1b_cluster_correlation_scatter.jpg"
+output_fig = OUTDIR / "01b_cluster_correlation_scatter.jpg"
 plt.savefig(output_fig, dpi=DPI, bbox_inches="tight")
 plt.close()
 

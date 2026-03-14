@@ -21,18 +21,18 @@ INPUTS:
 
 OUTPUTS:
 --------
-- 1a_sexual_violence_any_map.jpg (map of sexual violence-any prevalence)
-- 1a_sexual_violence_recent_map.jpg (map of recent sexual violence prevalence)
+- 01a_sexual_violence_any_map.jpg (map of sexual violence-any prevalence)
+- 01a_sexual_violence_recent_map.jpg (map of recent sexual violence prevalence)
 
 All outputs are saved in the output/ directory (same level as src/).
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/1a_vis_dhs_maps.py
+    python src/01a_vis_dhs_maps.py
 
 Or from the src directory:
-    python 1a_vis_dhs_maps.py
+    python 01a_vis_dhs_maps.py
 
 REQUIREMENTS:
 -------------
@@ -83,7 +83,7 @@ EXTENT = [11.893979235367297, 31.616531541802978, -13.981788316118982, 5.8118259
 
 # Visualization settings
 USE_WEIGHTS = True          # Use DHS sampling weights (recommended)
-WEIGHT_VARIABLE = "v005"    # Match h1_heatmap.py style: use v005 and scale by 1,000,000
+WEIGHT_VARIABLE = "v005"    # Match h01_heatmap.py style: use v005 and scale by 1,000,000
 DPI = 300                   # Resolution of output images (dots per inch)
 BG_ALPHA = 0.9            # Transparency of background map (0=invisible, 1=opaque)
 CMAP = "magma"             # Color map for prevalence (dark purple to yellow)
@@ -207,7 +207,7 @@ def main():
         print("\nERROR: Missing required columns in input CSV:")
         for label in missing_required:
             print(f"  - {label}")
-        print("\nHint: run src/0_add_rows_of_interest.py first to create the two indicators.")
+        print("\nHint: run src/00_add_rows_of_interest.py first to create the two indicators.")
         sys.exit(1)
 
     # Normalize/derive standard working columns so downstream plotting logic stays simple.
@@ -218,7 +218,7 @@ def main():
     data["_sv_recent_num"] = pd.to_numeric(data[indicator_recent_col], errors="coerce")
 
     if USE_WEIGHTS:
-        # Match h1_heatmap.py behavior: use selected DHS weight variable and scale by 1e6.
+        # Match h01_heatmap.py behavior: use selected DHS weight variable and scale by 1e6.
         if weight_col is not None:
             data["sampling_weight"] = (
                 pd.to_numeric(data[weight_col], errors="coerce") / 1_000_000.0
@@ -444,11 +444,11 @@ def main():
     )
 
     # Save map 1
-    output1 = OUTPUT_DIR / "1a_sexual_violence_any_map.jpg"
+    output1 = OUTPUT_DIR / "01a_sexual_violence_any_map.jpg"
     plt.savefig(output1, dpi=DPI, bbox_inches="tight")
     plt.close()
 
-    output1_csv = OUTPUT_DIR / "1a_sexual_violence_any_map.csv"
+    output1_csv = OUTPUT_DIR / "01a_sexual_violence_any_map.csv"
     pd.DataFrame(
         {
             "LONGNUM": df_sv["LONGNUM"],
@@ -541,11 +541,11 @@ def main():
     )
 
     # Save map 2
-    output2 = OUTPUT_DIR / "1a_sexual_violence_recent_map.jpg"
+    output2 = OUTPUT_DIR / "01a_sexual_violence_recent_map.jpg"
     plt.savefig(output2, dpi=DPI, bbox_inches="tight")
     plt.close()
 
-    output2_csv = OUTPUT_DIR / "1a_sexual_violence_recent_map.csv"
+    output2_csv = OUTPUT_DIR / "01a_sexual_violence_recent_map.csv"
     pd.DataFrame(
         {
             "LONGNUM": df_other["LONGNUM"],
@@ -568,16 +568,16 @@ def main():
     print("VISUALIZATION COMPLETE!")
     print("=" * 70)
     print(f"\n📊 OUTPUT FILES (saved in {OUTPUT_DIR.name}/):")
-    print(f"\n  1. 1a_sexual_violence_any_map.jpg")
+    print(f"\n  1. 01a_sexual_violence_any_map.jpg")
     print(f"     → Map of sexual violence (any) prevalence")
     print(f"     → {len(df_sv):,} clusters visualized")
-    print(f"\n  2. 1a_sexual_violence_any_map.csv")
+    print(f"\n  2. 01a_sexual_violence_any_map.csv")
     print(f"     → Data behind the sexual violence-any map (location/value/size)")
 
-    print(f"\n  3. 1a_sexual_violence_recent_map.jpg")
+    print(f"\n  3. 01a_sexual_violence_recent_map.jpg")
     print(f"     → Map of sexual violence (recent) prevalence")
     print(f"     → {len(df_other):,} clusters visualized")
-    print(f"\n  4. 1a_sexual_violence_recent_map.csv")
+    print(f"\n  4. 01a_sexual_violence_recent_map.csv")
     print(f"     → Data behind the sexual violence-recent map (location/value/size)")
 
     print(f"\n⚙️  Settings:")

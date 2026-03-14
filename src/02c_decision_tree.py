@@ -25,8 +25,8 @@ women in the DRC 2023-24 DHS survey. The analysis:
    - All hyperparameters defined at the top for easy tuning
 
 4. OUTPUTS:
-   - Tree structure as YAML (2c_decision_tree.yaml)
-   - Tree visualization as PNG and PDF (2c_decision_tree.png/pdf)
+   - Tree structure as YAML (02c_decision_tree.yaml)
+   - Tree visualization as PNG and PDF (02c_decision_tree.png/pdf)
    - Feature importance rankings
    - Model performance metrics
 
@@ -36,19 +36,19 @@ INPUTS:
 
 OUTPUTS:
 --------
-- 2c_decision_tree.yaml (tree structure in YAML format)
-- 2c_decision_tree.png (tree visualization, high resolution)
-- 2c_decision_tree.pdf (tree visualization, publication quality)
-- 2c_feature_importance.csv (ranked predictor variables)
-- 2c_model_performance.txt (accuracy, precision, recall, F1 metrics)
-- 2c_data_quality_report.txt (report on filtered variables)
+- 02c_decision_tree.yaml (tree structure in YAML format)
+- 02c_decision_tree.png (tree visualization, high resolution)
+- 02c_decision_tree.pdf (tree visualization, publication quality)
+- 02c_feature_importance.csv (ranked predictor variables)
+- 02c_model_performance.txt (accuracy, precision, recall, F1 metrics)
+- 02c_data_quality_report.txt (report on filtered variables)
 
 All outputs are saved in the output/ directory.
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/2c_decision_tree.py
+    python src/02c_decision_tree.py
 
 REQUIREMENTS:
 -------------
@@ -826,7 +826,7 @@ def main():
     )
     
     # Save quality report
-    quality_report_path = OUTPUT_DIR / "2c_data_quality_report.txt"
+    quality_report_path = OUTPUT_DIR / "02c_data_quality_report.txt"
     with open(quality_report_path, 'w') as f:
         f.write("=" * 70 + "\n")
         f.write("DATA QUALITY REPORT\n")
@@ -1002,7 +1002,7 @@ def main():
         'tree_structure': tree_to_dict(clf, feature_names)
     }
     
-    output_yaml = OUTPUT_DIR / "2c_decision_tree.yaml"
+    output_yaml = OUTPUT_DIR / "02c_decision_tree.yaml"
     with open(output_yaml, 'w') as f:
         yaml.dump(tree_dict, f, default_flow_style=False, sort_keys=False)
     print(f"  ✓ Saved: {output_yaml.name}")
@@ -1013,7 +1013,7 @@ def main():
         'importance': clf.feature_importances_
     }).sort_values('importance', ascending=False)
     
-    output_importance = OUTPUT_DIR / "2c_feature_importance.csv"
+    output_importance = OUTPUT_DIR / "02c_feature_importance.csv"
     feature_importance.to_csv(output_importance, index=False)
     print(f"  ✓ Saved: {output_importance.name}")
     
@@ -1038,11 +1038,11 @@ def main():
                 f'DRC DHS 2023-24 (n={len(X):,}, depth={clf.get_depth()}, leaves={clf.get_n_leaves()})',
                 fontsize=16, fontweight='bold', pad=20)
     
-    output_png = OUTPUT_DIR / "2c_decision_tree.png"
+    output_png = OUTPUT_DIR / "02c_decision_tree.png"
     plt.savefig(output_png, dpi=DPI, bbox_inches='tight')
     print(f"  ✓ Saved: {output_png.name}")
     
-    output_pdf = OUTPUT_DIR / "2c_decision_tree.pdf"
+    output_pdf = OUTPUT_DIR / "02c_decision_tree.pdf"
     plt.savefig(output_pdf, bbox_inches='tight')
     print(f"  ✓ Saved: {output_pdf.name}")
     plt.close()

@@ -27,19 +27,19 @@ INPUTS:
 OUTPUTS:
 --------
 For each variable in VARIABLES_TO_PLOT:
-- h1_{variable}_heatmap.csv (aggregated data with wealth × education cells)
-- h1_{variable}_heatmap.png (heatmap visualization - PNG format)
-- h1_{variable}_heatmap.pdf (heatmap visualization - PDF format)
+- h01_{variable}_heatmap.csv (aggregated data with wealth × education cells)
+- h01_{variable}_heatmap.png (heatmap visualization - PNG format)
+- h01_{variable}_heatmap.pdf (heatmap visualization - PDF format)
 
 All outputs are saved in the output/ directory (same level as src/).
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/h1_heatmap.py
+    python src/h01_heatmap.py
 
 Or from the src directory:
-    python h1_heatmap.py
+    python h01_heatmap.py
 
 REQUIREMENTS:
 -------------
@@ -530,9 +530,9 @@ def main():
         print(f"\n  [{i}/{len(all_agg_data)}] Creating heatmap for {var} ({var_desc})...")
         
         # Generate output filenames for this variable
-        output_csv = OUTPUT_DIR / f"h1_{var.lower()}_heatmap.csv"
-        output_png = OUTPUT_DIR / f"h1_{var.lower()}_heatmap.png"
-        output_pdf = OUTPUT_DIR / f"h1_{var.lower()}_heatmap.pdf"
+        output_csv = OUTPUT_DIR / f"h01_{var.lower()}_heatmap.csv"
+        output_png = OUTPUT_DIR / f"h01_{var.lower()}_heatmap.png"
+        output_pdf = OUTPUT_DIR / f"h01_{var.lower()}_heatmap.pdf"
         
         # Save aggregated data to CSV
         agg_output = agg_data.copy()

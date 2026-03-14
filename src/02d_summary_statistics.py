@@ -32,7 +32,7 @@ INPUTS:
 
 OUTPUTS:
 --------
-- 2d_summary_statistics.txt (comprehensive text file with all variable summaries)
+- 02d_summary_statistics.txt (comprehensive text file with all variable summaries)
   Easy-to-read format with statistics for each variable
 
 All outputs are saved in the output/ directory.
@@ -40,10 +40,10 @@ All outputs are saved in the output/ directory.
 USAGE:
 ------
 Run from the project root directory:
-    python src/2d_summary_statistics.py
+    python src/02d_summary_statistics.py
 
 Or from the src directory:
-    python 2d_summary_statistics.py
+    python 02d_summary_statistics.py
 
 REQUIREMENTS:
 -------------
@@ -700,7 +700,7 @@ def main():
     print("-" * 70)
     
     # Create the output text file
-    output_txt = OUTPUT_DIR / "2d_summary_statistics.txt"
+    output_txt = OUTPUT_DIR / "02d_summary_statistics.txt"
     
     print(f"\nWriting summary statistics to: {output_txt.name}")
     

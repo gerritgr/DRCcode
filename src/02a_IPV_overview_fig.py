@@ -23,18 +23,18 @@ INPUTS:
 OUTPUTS:
 --------
 For each variable in VARIABLES_TO_PLOT:
-- h2_{variable_name}_map.jpg (map of prevalence)
-- h2_{variable_name}_map.csv (underlying data)
+- 02a_{variable_name}_map.jpg (map of prevalence)
+- 02a_{variable_name}_map.csv (underlying data)
 
 All outputs are saved in the output/ directory (same level as src/).
 
 USAGE:
 ------
 Run from the project root directory:
-    python src/h2_vis_dhs_maps.py
+    python src/02a_IPV_overview_fig.py
 
 Or from the src directory:
-    python h2_vis_dhs_maps.py
+    python 02a_IPV_overview_fig.py
 
 REQUIREMENTS:
 -------------
@@ -610,8 +610,8 @@ def main():
         var_desc = VARIABLE_DESCRIPTIONS.get(var, var)
         print(f"\n[{i}/{len(VARIABLES_TO_PLOT)}] Creating map for {var} ({var_desc})...")
         
-        output_jpg = OUTPUT_DIR / f"h2_{var}_map.jpg"
-        output_csv = OUTPUT_DIR / f"h2_{var}_map.csv"
+        output_jpg = OUTPUT_DIR / f"02a_{var}_map.jpg"
+        output_csv = OUTPUT_DIR / f"02a_{var}_map.csv"
         
         n_plotted = create_map_visualization(
             plot_df=plot_df,

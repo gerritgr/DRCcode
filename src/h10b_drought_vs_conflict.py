@@ -7,7 +7,7 @@ H10B: Drought Exposure vs IPV Analysis - Woman-Level Bar Charts
 
 WHAT THIS SCRIPT DOES:
 ----------------------
-This script reproduces the core principle of h9_conflict_vs_ipv.py, but uses
+This script reproduces the core principle of h09_conflict_vs_ipv.py, but uses
 drought exposure classes instead of conflict distance:
 
 1. Read woman-level DHS responses (with GPS coordinates).
