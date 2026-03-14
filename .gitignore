@@ -217,6 +217,7 @@ __marimo__/
 DATA/.DS_Store
 DATA/Conflict/.DS_Store
 DATA/Conflict/Africa_lagged_data_up_to-2024-10-17/Africa_lagged_data_up_to-2024-10-17.xlsx
+DATA/Conflict/Uppsala/GEDEvent_v25_1.csv
 DATA/DHS/.DS_Store
 DATA/DHS/CDGE81FL/CDGE81FL.shp
 DATA/DHS/CDIR81FL/CDIR81FL.DCT
