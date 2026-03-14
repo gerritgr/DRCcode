@@ -102,7 +102,8 @@ MAX_POINT_SIZE = 100         # Maximum marker size (for high casualties)
 SIZE_SCALE_POWER = 0.5       # Power for size scaling (0.5 = square root, 1.0 = linear)
 
 # Point appearance
-POINT_ALPHA = 0.15           # Transparency of points (0-1)
+POINT_ALPHA = 0.15
+           # Transparency of points (0-1)
 POINT_EDGE_WIDTH = 0.1       # Width of point edges
 
 # Legend settings

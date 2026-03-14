@@ -3,8 +3,8 @@
 """
 Compare ACLED vs Uppsala GED event maps for the same years.
 
-Run from this folder:
-    python compare_uppsala_acled.py
+Run from project root:
+    python src/3_compare_uppsala_acled.py
 
 What this script does:
 1) Ensures `background.jpg` exists in this folder:
@@ -35,16 +35,32 @@ from shapely.geometry import box
 # CONFIGURATION (EDIT HERE)
 # =============================================================================
 
-# Input files (assumes script is run from this directory)
-INPUT_ACLED_XLSX = Path("Africa_lagged_data_up_to-2024-10-17.xlsx")
-INPUT_UPPSALA_CSV = Path("GEDEvent_v25_1.csv")
+# Robust project-relative paths
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 
-# Background image cache in this same folder.
-BACKGROUND_JPG = Path("background.jpg")
+# Input files (DATA/Conflict/...)
+INPUT_ACLED_XLSX = (
+    PROJECT_ROOT
+    / "DATA"
+    / "Conflict"
+    / "Africa_lagged_data_up_to-2024-10-17"
+    / "Africa_lagged_data_up_to-2024-10-17.xlsx"
+)
+INPUT_UPPSALA_CSV = (
+    PROJECT_ROOT
+    / "DATA"
+    / "Conflict"
+    / "Uppsala"
+    / "GEDEvent_v25_1.csv"
+)
 
-# All generated files go here.
-OUTPUT_DIR = Path("output")
+# Output paths (output/3_...)
+OUTPUT_DIR = PROJECT_ROOT / "output"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Background image cache (also under output/3_...)
+BACKGROUND_JPG = OUTPUT_DIR / "3_background.jpg"
 
 # Years to render.
 # Use explicit list, or set to None for automatic overlap between ACLED/Uppsala.
@@ -535,7 +551,7 @@ def main() -> None:
             events_df=acled_year,
             dataset_label="ACLED",
             title_suffix=f"Year {year}",
-            out_stem=OUTPUT_DIR / f"compare_acled_{year}",
+            out_stem=OUTPUT_DIR / f"3_compare_acled_{year}",
             background_image=bg,
         )
         meta["year"] = year
@@ -545,7 +561,7 @@ def main() -> None:
             events_df=uppsala_year,
             dataset_label="Uppsala GED",
             title_suffix=f"Year {year}",
-            out_stem=OUTPUT_DIR / f"compare_uppsala_{year}",
+            out_stem=OUTPUT_DIR / f"3_compare_uppsala_{year}",
             background_image=bg,
         )
         meta["year"] = year
@@ -560,7 +576,7 @@ def main() -> None:
         events_df=acled_all,
         dataset_label="ACLED",
         title_suffix=f"Aggregate ({year_span})",
-        out_stem=OUTPUT_DIR / "compare_acled_all_years",
+        out_stem=OUTPUT_DIR / "3_compare_acled_all_years",
         background_image=bg,
     )
     meta["year"] = "all"
@@ -570,7 +586,7 @@ def main() -> None:
         events_df=uppsala_all,
         dataset_label="Uppsala GED",
         title_suffix=f"Aggregate ({year_span})",
-        out_stem=OUTPUT_DIR / "compare_uppsala_all_years",
+        out_stem=OUTPUT_DIR / "3_compare_uppsala_all_years",
         background_image=bg,
     )
     meta["year"] = "all"
@@ -579,7 +595,7 @@ def main() -> None:
     manifest = pd.DataFrame(manifest_rows)[
         ["dataset", "year", "title_suffix", "n_total", "n_inside_drc", "n_outside_drc", "jpg_path", "pdf_path"]
     ]
-    manifest_path = OUTPUT_DIR / "compare_image_manifest.csv"
+    manifest_path = OUTPUT_DIR / "3_compare_image_manifest.csv"
     manifest.to_csv(manifest_path, index=False)
 
     print("\nGenerated files:")

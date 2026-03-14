@@ -1,0 +1,7 @@
+Files in this folder:
+
+- `CDGE81FL.shp`: Main DHS GPS cluster shapefile geometry.
+- `CDGE81FL.shx`: Shapefile index file required together with the `.shp`.
+- `CDGE81FL.dbf`: Attribute table for the DHS GPS shapefile.
+- `CDGE81FL.prj`: Coordinate reference system definition for the shapefile.
+- `CDGE81FL.cpg`: Character encoding definition for the shapefile attributes.

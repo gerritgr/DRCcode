@@ -1,0 +1,3 @@
+Files in this folder:
+
+- `spei01.nc`: Raw SPEI NetCDF file with gridded drought index values over space and time.

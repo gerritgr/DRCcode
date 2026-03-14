@@ -1,0 +1,9 @@
+Files in this folder:
+
+- `CDIR81FL.dta`: Main DHS IR (Individual Recode) dataset in Stata format.
+- `CDIR81FL.DCT`: Stata dictionary / import description for the DHS IR dataset.
+- `CDIR81FL.DO`: Stata do-file associated with the DHS IR dataset.
+- `CDIR81FL.docx`: Documentation file for the DHS IR dataset.
+- `CDIR81FL.frq`: Frequency report file distributed with the DHS dataset.
+- `CDIR81FL.frw`: Recode / metadata helper file distributed with the DHS dataset.
+- `CDIR81FL.map`: Map / metadata file associated with the DHS release.
