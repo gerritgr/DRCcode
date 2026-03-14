@@ -77,6 +77,21 @@ Install core packages used across scripts:
 uv pip install pandas numpy matplotlib seaborn scipy requests pillow openpyxl geopandas shapely xarray netCDF4 pyyaml
 ```
 
+Run Python scripts with this environment in one of these two ways:
+
+```bash
+source drcenv/bin/activate
+python src/h01_heatmap.py
+```
+
+or directly through `uv` without manually activating the environment:
+
+```bash
+uv run python src/h01_heatmap.py
+```
+
+You can replace `src/h01_heatmap.py` with any other script from `src/`.
+
 If you want a pinned requirements file:
 
 ```bash
@@ -150,4 +165,3 @@ Here’s a **short clustering** you can use (with the main prefixes you have in 
 **14) Chronic disease / mental health / special modules**
 **Purpose:** non-communicable disease, mental health screening, fistula.  
 **Vars:** `CHD*`, `MTH*`, `FI*`, plus country-specific `S*`, `SD/SM/SY*`.
-
