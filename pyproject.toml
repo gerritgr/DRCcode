@@ -1,0 +1,24 @@
+[project]
+name = "drcode"
+version = "0.1.0"
+description = "Analysis scripts for sexual violence, conflict, and drought in the DRC."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "geopandas",
+    "matplotlib",
+    "netcdf4",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "pillow",
+    "pyyaml",
+    "requests",
+    "scipy",
+    "seaborn",
+    "shapely",
+    "xarray",
+]
+
+[tool.uv]
+package = false

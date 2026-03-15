@@ -31,18 +31,38 @@ DATA/
       GEDEvent_v25_1.csv              # UCDP GED / Uppsala
 ```
 
-Then generate/refresh derived files:
+## Python Environment with `uv`
+
+Before using the commands below, make sure **Python** and **`uv`** are already installed on your operating system.
+
+This repository now includes `pyproject.toml` and `uv.lock`, so the setup flow is:
 
 ```bash
-python DATA/DHS/convert.py
-python DATA/Drought/convert.py
+git clone git@github.com:gerritgr/DRCcode.git
+# Place the original data sources into the folders listed above in DATA/
+cd DRCcode
+uv sync
+uv run python DATA/DHS/convert.py
+uv run python DATA/Drought/convert.py
+```
+
+This will create the local project environment and generate the derived DHS and drought tables used by the analysis scripts.
+
+After that, run any script with:
+
+```bash
+uv run python src/<scriptname.py>
+```
+
+For example:
+
+```bash
+uv run python src/h01_heatmap.py
 ```
 
 This will (re)create key analysis tables such as:
 - `DATA/DHS/women_all_answers_gps.csv`
 - `DATA/Drought/DRC_spei01_clean.csv`
-
-You can then run the desired analysis scripts directly from the `src/` folder (for example: `python src/h01_heatmap.py`).
 
 ## Python Scripts in `src/`
 
@@ -61,48 +81,6 @@ You can then run the desired analysis scripts directly from the `src/` folder (f
 - `h09b_conflict_visuals.py`: Visualizes conflict events in and around the DRC.
 - `h10a_visuals.py`: Maps drought intensity / drought-month exposure from SPEI data.
 - `h10b_drought_vs_conflict.py`: Compares drought exposure classes with recent violence indicators.
-
-## Python Environment with `uv` (Optional but Recommended)
-
-Create and activate a local environment:
-
-```bash
-uv venv drcenv
-source drcenv/bin/activate
-```
-
-Install core packages used across scripts:
-
-```bash
-uv pip install pandas numpy matplotlib seaborn scipy requests pillow openpyxl geopandas shapely xarray netCDF4 pyyaml
-```
-
-Run Python scripts with this environment in one of these two ways:
-
-```bash
-source drcenv/bin/activate
-python src/h01_heatmap.py
-```
-
-or directly through `uv` without manually activating the environment:
-
-```bash
-uv run python src/h01_heatmap.py
-```
-
-You can replace `src/h01_heatmap.py` with any other script from `src/`.
-
-If you want a pinned requirements file:
-
-```bash
-uv pip freeze > requirements.txt
-```
-
-Later, to sync exactly to that file:
-
-```bash
-uv pip sync requirements.txt
-```
 
 ## Overview DHS Variables
 
