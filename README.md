@@ -48,10 +48,26 @@ uv run python DATA/Drought/convert.py
 
 This will create the local project environment and generate the derived DHS and drought tables used by the analysis scripts.
 
+This will (re)create key analysis tables such as:
+- `DATA/DHS/women_all_answers_gps.csv`
+- `DATA/Drought/DRC_spei01_clean.csv`
+
 After that, run any script with:
 
 ```bash
 uv run python src/<scriptname.py>
+```
+
+If you prefer to activate the environment once and then call `python` directly, run:
+
+```bash
+source drcenv
+```
+
+Then you can use:
+
+```bash
+python src/<scriptname.py>
 ```
 
 For example:
@@ -60,24 +76,20 @@ For example:
 uv run python src/h01_heatmap.py
 ```
 
-This will (re)create key analysis tables such as:
-- `DATA/DHS/women_all_answers_gps.csv`
-- `DATA/Drought/DRC_spei01_clean.csv`
-
 ## Python Scripts in `src/`
 
-- `00_add_rows_of_interest.py`: Adds row-wise derived violence indicators to `women_all_answers_gps.csv`.
-- `00_generate_background_image.py`: Downloads and assembles an OpenStreetMap-based DRC background image.
-- `00_generate_background_image_naturalEarth.py`: Builds a Natural Earth-based DRC background map image.
+- `00a_add_rows_of_interest.py`: Adds row-wise derived violence indicators to `women_all_answers_gps.csv`.
+- `00b_generate_background_image.py`: Downloads and assembles an OpenStreetMap-based DRC background image.
+- `00c_generate_background_image_naturalEarth.py`: Builds a Natural Earth-based DRC background map image.
 - `01a_vis_dhs_maps.py`: Creates cluster-level DHS violence prevalence maps for selected indicators.
 - `01b_vis_dhs_scatter.py`: Creates a cluster-level correlation scatter plot for two DHS indicators.
 - `02a_IPV_overview_fig.py`: Generates generalized cluster-level prevalence maps for configurable DHS variables.
 - `02c_decision_tree.py`: Trains a decision tree model to predict extreme disadvantage from DHS variables.
 - `02d_summary_statistics.py`: Produces broad summary statistics and frequency-style outputs for DHS variables.
 - `02e_correlated_rows.py`: Finds strongly correlated DHS columns and writes a text summary.
-- `03_compare_uppsala_acled.py`: Compares ACLED and Uppsala conflict maps across years.
+- `03a_compare_uppsala_acled.py`: Compares ACLED and Uppsala conflict maps across years.
 - `h01_heatmap.py`: Creates wealth-by-education heatmaps for violence indicators.
-- `h09_conflict_vs_ipv.py`: Analyzes IPV versus distance to nearby conflict events.
+- `h09a_conflict_vs_ipv.py`: Analyzes IPV versus distance to nearby conflict events.
 - `h09b_conflict_visuals.py`: Visualizes conflict events in and around the DRC.
 - `h10a_visuals.py`: Maps drought intensity / drought-month exposure from SPEI data.
 - `h10b_drought_vs_conflict.py`: Compares drought exposure classes with recent violence indicators.
